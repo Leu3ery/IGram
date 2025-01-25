@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const authenticateJWT = require('../middleware/authenticateJWT');
 const { User } = require('../models');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -94,5 +95,40 @@ router.post('/refresh', async (req, res) => {
     const accessToken = jwt.sign({id: decoded.id}, process.env.JWT_ACCESS, {expiresIn: '1h'});
     res.status(200).json({"accessToken": accessToken});
 })
+
+router.patch('/', authenticateJWT, async (req, res) => {
+    const { name, description } = req.body; 
+
+    if (!name && !description) {
+        return res.status(400).json({"message": "At least one field (name or description) must be provided."});
+    }
+
+    try {
+        const user = await User.findOne({ where: { id: req.user.id } });
+        if (!user) {
+            return res.status(404).json({"message": "User not found"});
+        }
+
+        await user.update({ name, description });
+        res.status(200).json({"message": "User updated successfully"});
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while updating the user."});
+    }
+});
+
+router.get('/:username', async (req, res) => {
+    const username = req.params.username;
+    try {
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        res.status(200).json({username: user.username, name: user.name, description: user.description});
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while fetching the user."});
+    }
+});
 
 module.exports = router;
