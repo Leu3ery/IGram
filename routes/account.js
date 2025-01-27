@@ -117,6 +117,19 @@ router.patch('/', authenticateJWT, async (req, res) => {
     }
 });
 
+router.get('/', authenticateJWT, async (req, res) => {
+    try {
+        const user = await User.findOne({ where: { id: req.user.id } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        res.status(200).json({username: user.username, name: user.name, description: user.description});
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while fetching the user."});
+    }
+});
+
 router.get('/:username', async (req, res) => {
     const username = req.params.username;
     try {
