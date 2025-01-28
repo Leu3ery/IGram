@@ -50,6 +50,22 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true
         },
+        role: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            defaultValue: 'user',
+            validate: {
+                notNull: {
+                    msg: 'Role is required'
+                },
+
+                isRoleValid(value) {
+                    if (value !== 'user' && value !== 'admin') {
+                        throw new Error('Role must be either "user" or "admin"');
+                    }
+                }
+            }
+        }
     });
     return User;
 };
