@@ -1,20 +1,41 @@
 ## Структура проєкту
 
+- database.sqlite
 - middleware
   - authenticateJWT.js
+  - multerMiddleware.js
 - models
   - index.js
+  - post.js
   - user.js
 - routes
   - account.js
+  - auth.js
+  - post.js
+  - uploads.js
 - server.js
+- setAdmin.js
+- swagger
+  - IGram-swagger-v1.1.yaml
+  - IGram-swagger-v1.2.yaml
+  - IGram-swagger-v1.3.yaml
+  - IGram-swagger-v1.4.yaml
+  - IGram-swagger-v1.5.yaml
 - test.py
 
 ## Код файлів
 
+### database.sqlite
+
+```
+Файл ./database.sqlite не вдалося прочитати: невідоме кодування або це не текстовий файл.
+```
+
 ### middleware/authenticateJWT.js
 
 ```javascript
+const jwt = require('jsonwebtoken');
+
 const authenticateJWT = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader) {
@@ -34,6 +55,45 @@ const authenticateJWT = (req, res, next) => {
 module.exports = authenticateJWT;
 ```
 
+### middleware/multerMiddleware.js
+
+```javascript
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+    destination: function(req, file, cb) {
+        const uploadPath = path.resolve(__dirname, '../uploads/');
+        cb(null, uploadPath);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+        cb(null, true);
+    } else {
+        const error = new multer.MulterError('LIMIT_UNEXPECTED_FILE');
+        error.message = 'Invalid file type (only JPEG and PNG are allowed)';
+        cb(error, false);
+    }
+};  
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 1024 * 1024 * 5
+    },
+    fileFilter: fileFilter
+});
+
+module.exports = upload;
+```
+
 ### models/index.js
 
 ```javascript
@@ -44,9 +104,75 @@ const sequelize = new Sequelize({
 });
 
 const User = require('./user')(sequelize, DataTypes);
+const Post = require('./post')(sequelize, DataTypes);
+
+User.hasMany(Post, {
+    foreignKey: 'creator', // Specify the foreign key name
+    sourceKey: 'username' // Specify the primary key in the User table
+});
+
+Post.belongsTo(User, {
+    foreignKey: 'creator', // Specify the foreign key name
+    targetKey: 'username' // Specify the primary key in the User table
+});
 
 module.exports = {
-    User
+    sequelize,
+    User,
+    Post
+}
+```
+
+### models/post.js
+
+```javascript
+module.exports = (sequelize, DataTypes) => {
+    const Post = sequelize.define('Post', {
+        creator: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            len: [3, 32],
+            validate: {
+                notNull: {
+                    msg: 'Creator is required'
+                },
+                len: {
+                    args: [3, 32],
+                    msg: 'Creator must be between 3 and 32 characters long'
+                }
+            }
+        },
+        title: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            len: [3, 64],
+            validate: {
+                notNull: {
+                    msg: 'Title is required'
+                },
+                len: {
+                    args: [3, 64],
+                    msg: 'Title must be between 3 and 64 characters long'
+                }
+            }
+        },
+        content: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            len: [0, 500],
+            validate: {
+                len: {
+                    args: [0, 500],
+                    msg: 'Content must be between 0 and 500 characters long'
+                }
+            }
+        },
+        image: {
+            type: DataTypes.STRING,
+            allowNull: true
+        }
+    });
+    return Post;
 }
 ```
 
@@ -67,10 +193,6 @@ module.exports = (sequelize, DataTypes) => {
                 len: {
                     args: [3, 32],
                     msg: 'Username must be between 3 and 32 characters long'
-                },
-                isUnique: {
-                    args: true,
-                    msg: 'Username already exists'
                 }
             }
         },
@@ -109,6 +231,22 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true
         },
+        role: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            defaultValue: 'user',
+            validate: {
+                notNull: {
+                    msg: 'Role is required'
+                },
+
+                isRoleValid(value) {
+                    if (value !== 'user' && value !== 'admin') {
+                        throw new Error('Role must be either "user" or "admin"');
+                    }
+                }
+            }
+        }
     });
     return User;
 };
@@ -119,7 +257,126 @@ module.exports = (sequelize, DataTypes) => {
 ```javascript
 const express = require('express');
 const router = express.Router();
-const User = require('../models/user');
+const authenticateJWT = require('../middleware/authenticateJWT');
+const { User } = require('../models');
+const dotenv = require('dotenv');
+const { Op } = require('sequelize'); 
+dotenv.config();
+
+
+router.patch('/', authenticateJWT, async (req, res) => {
+    const { name, description } = req.body; 
+
+    if (!name && !description) {
+        return res.status(400).json({"message": "At least one field (name or description) must be provided."});
+    }
+
+    try {
+        const user = await User.findOne({ where: { id: req.user.id } });
+        if (!user) {
+            return res.status(404).json({"message": "User not found"});
+        }
+
+        await user.update({ name, description });
+        res.status(200).json({"message": "User updated successfully"});
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while updating the user."});
+    }
+});
+
+router.get('/', authenticateJWT, async (req, res) => {
+    try {
+        const user = await User.findOne({ where: { id: req.user.id } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        res.status(200).json({username: user.username, name: user.name, description: user.description});
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while fetching the user."});
+    }
+});
+
+router.delete('/', authenticateJWT, async (req, res) => {
+    try {
+        const user = await User.findOne({ where: { id: req.user.id } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        await user.destroy();
+        res.status(200).json({"message": "User deleted successfully"});
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while deleting the user."});
+    }
+});
+
+
+router.get('/list', async (req, res) => {
+    const offSet = req.query.offSet || 0;
+    const limit = req.query.limit || 10;
+    const startsWith = req.query.startsWith || "";
+    try {
+        const users = await User.findAll({
+            attributes: ['username', 'name', 'description'],
+            where: {
+                username: {
+                    [Op.startsWith]: startsWith
+                }
+            },
+            offset: parseInt(offSet),
+            limit: parseInt(limit)
+        });
+        res.status(200).json(users);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while fetching the user list."});
+    }
+})
+
+router.get('/:username', async (req, res) => {
+    const username = req.params.username;
+    try {
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        res.status(200).json({username: user.username, name: user.name, description: user.description});
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while fetching the user."});
+    }
+});
+
+router.delete('/:username', authenticateJWT, async (req, res) => {
+    try {
+        const adminUser = await User.findOne({ where: {id: req.user.id} });
+        if (!adminUser || adminUser.role !== 'admin') {
+            return res.status(400).json({"message": "You must be an admin to delete a user."});
+        }
+        const user = await User.findOne({ where: { username: req.params.username } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        await user.destroy();
+        res.status(200).json({"message": "User deleted successfully"});
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({"message": "An error occurred while deleting the user."});
+    }
+});
+
+
+module.exports = router;
+```
+
+### routes/auth.js
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const { User } = require('../models');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
@@ -201,8 +458,9 @@ router.post('/refresh', async (req, res) => {
     if (!refreshToken) {
         return res.status(400).json({"message": "Refresh token is required"});
     }
+    let decoded;
     try {
-        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH);
+        decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH);
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
             return res.status(400).json({"message": "Refresh token expired"});
@@ -213,7 +471,268 @@ router.post('/refresh', async (req, res) => {
     res.status(200).json({"accessToken": accessToken});
 })
 
+
 module.exports = router;
+```
+
+### routes/post.js
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const { Post, User } = require('../models/index');
+const authenticateJWT = require('../middleware/authenticateJWT');
+
+
+router.post('/', authenticateJWT, async (req, res) => {
+    try {
+        const {title, content} = req.body;
+        const creatorAccount = await User.findOne({where: {id: req.user.id}});
+        if (!creatorAccount) {
+            return res.status(400).json({"message": "Creator account not found"});
+        }
+        if (!title || title.length < 3 || title.length > 64) {
+            return res.status(400).json({"message": "At least title is required"});
+        }
+        if (content && content.length > 500) {
+            return res.status(400).json({"message": "Content length must be less than 500 characters"});
+        }
+        const post = await Post.create({title, content, creator: creatorAccount.username});
+        res.status(201).json({"message": "Post created successfully", "postId": post.id});
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({"message": "Something went wrong"});
+    }
+});
+
+router.get('/list', async (req, res) => {
+    const {offSet, limit, username} = req.query;
+    try {
+        if (!username) {
+            return res.status(400).json({"message": "Username is required"});
+        }
+        const user = await User.findOne({where: {username}});
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        const posts = await Post.findAll({
+            attributes: ['id', 'creator', 'title', 'content', 'createdAt'],
+            where: { creator: username },
+            offset: !offSet ? 0 : parseInt(offSet),
+            limit: !limit ? 10 : parseInt(limit),
+            order: [['createdAt', 'DESC']] // Order by createdAt in descending order
+        });
+        res.status(200).json(posts);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({"message": "Something went wrong"});
+    }
+});
+
+
+router.patch('/:postId', authenticateJWT, async (req, res) => {
+    try {
+        const post = await Post.findByPk(req.params.postId);
+        if (!post) {
+            return res.status(400).json({"message": "Post not found"});
+        }
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        if (post.creator !== user.username) {
+            return res.status(400).json({"message": "You can only update your own posts"});
+        }
+        const {title, content} = req.body;
+        if (title && (title.length < 3 || title.length > 64)) {
+            return res.status(400).json({"message": "Title must be between 3 and 64 characters long"});
+        }
+        if (content && content.length > 500) {
+            return res.status(400).json({"message": "Content length must be less than 500 characters"});
+        }
+        if (title) {
+            post.title = title;
+        }
+        if (content) {
+            post.content = content;
+        }
+        await post.save();
+        res.status(200).json({"message": "Post updated successfully"});
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({"message": "Something went wrong"});
+    }
+});
+
+router.get('/:postId', async (req, res) => {
+    try {
+        const post = await Post.findByPk(req.params.postId);
+        if (!post) {
+            return res.status(400).json({"message": "Post not found"});
+        }
+        res.status(200).json({id: post.id, creator: post.creator, title: post.title, content: post.content});
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({"message": "Something went wrong"});
+    }
+});
+
+router.delete('/:postId', authenticateJWT, async (req, res) => {
+    try {
+        const post = await Post.findByPk(req.params.postId);
+        if (!post) {
+            return res.status(400).json({"message": "Post not found"});
+        }
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        }
+        if (post.creator !== user.username) {
+            return res.status(400).json({"message": "You can only delete your own posts"});
+        }
+        await post.destroy();
+        res.status(200).json({"message": "Post deleted successfully"});
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({"message": "Something went wrong"});
+    }
+});
+
+
+module.exports = router;
+```
+
+### routes/uploads.js
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const upload = require('../middleware/multerMiddleware');
+const authenticateJWT = require('../middleware/authenticateJWT');
+const {User, Post} = require('../models');
+const path = require('path');
+const fs = require('fs');
+
+
+router.post(
+    '/account/photo',
+    authenticateJWT,
+    (req, res, next) => {
+        upload.single('file')(req, res, (err) => {
+            if (err) {
+                return next(err);
+            }
+            next();
+        });
+    },
+    async (req, res, next) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: 'No file uploaded' });
+            }
+
+            const user = await User.findByPk(req.user.id);
+            if (!user) {
+                return res.status(400).json({ message: 'User not found' });
+            }
+            try {
+                if (user.avatarImage) {
+                    const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
+                    fs.unlink(photoPath);
+                }
+            } catch (error) {
+                console.error("Error deleting photo:", error);
+            }
+            user.avatarImage = req.file.filename;
+            await user.save();
+
+            res.status(200).json({ message: 'Photo uploaded successfully' });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+router.get('/account/photo/:username', async (req, res) => {
+    const user = await User.findOne({ where: { username: req.params.username } });
+    if (!user) {
+        return res.status(400).json({ message: 'User not found' });
+    }
+
+    if (!user.avatarImage) {
+        return res.status(404).json({ message: 'Photo not found' });
+    }
+    const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
+    res.sendFile(photoPath);
+});
+
+router.post('/post/:postId/image', 
+    authenticateJWT, 
+    async (req, res, next) => {
+        upload.single('file')(req, res, (err) => {
+            if (err) {
+                return next(err);
+            }
+            next();
+        });
+    }, 
+    async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: 'No file uploaded' });
+            }
+            if (!req.params.postId) {
+                return res.status(400).json({ message: 'Post id param is required' });
+            }
+            const post = await Post.findByPk(req.params.postId);
+            if (!post) {
+                return res.status(400).json({ message: 'Post not found' });
+            }
+            const user = await User.findByPk(req.user.id);
+            if (!user) {
+                return res.status(400).json({ message: 'User not found' });
+            }
+            if (post.creator !== user.username) {
+                return res.status(400).json({ message: 'You can only update your own posts' });
+            }
+            try {
+                if (post.image) {
+                    const imagePath = path.join(__dirname, '..', 'uploads', post.image);
+                    fs.unlink(imagePath);
+                }
+            } catch (error) {
+                console.error("Error deleting image:", error);
+            }
+            post.image = req.file.filename;
+            await post.save();
+            res.status(200).json({ message: 'Image uploaded successfully' });
+        } catch (error) {
+            next(error);
+        }
+});
+
+router.get('/post/:postId/image', async (req, res) => {
+    try {
+        if (!req.params.postId) {
+            return res.status(400).json({ message: 'Post id param is required' });
+        }
+        const post = await Post.findByPk(req.params.postId);
+        if (!post) {
+            return res.status(400).json({ message: 'Post not found' });
+        }
+        if (!post.image) {
+            return res.status(404).json({ message: 'Image not found' });
+        }
+        const imagePath = path.join(__dirname, '..', 'uploads', post.image);
+        res.sendFile(imagePath);
+    } catch (error) {
+        next(error);
+    }
+});
+
+
+module.exports = router;
+
 ```
 
 ### server.js
@@ -221,133 +740,51 @@ module.exports = router;
 ```javascript
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
+const { sequelize } = require('./models');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+app.use('/api/v1/auth/', require('./routes/auth'));
+app.use('/api/v1/account/', require('./routes/account'));
+app.use('/api/v1/post/', require('./routes/post'));
+app.use('/api/v1/', require('./routes/uploads'));
 
-app.get('/', (req, res) => {
-    res.status(404).send('Page not found');
-})
 
-app.use('/account', require('./routes/account'));
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({ message: err.message });
+    }
+
+    console.error(err.stack);
+    res.status(500).json({ message: 'Something went wrong!' });
+});
 
 
 const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port http://localhost:${PORT}`);
+sequelize.sync().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port http://localhost:${PORT}`);
+    });
 });
 ```
 
-### test.py
+### setAdmin.js
 
-```python
-import os
+```javascript
+const { Sequelize } = require('sequelize');
+const { User } = require('./models/index');
 
-def get_language_by_extension(file_path: str) -> str:
-    _, ext = os.path.splitext(file_path.lower())
-    ext_to_lang = {
-        '.py': 'python',
-        '.java': 'java',
-        '.js': 'javascript',
-        '.ts': 'typescript',
-        '.html': 'html',
-        '.css': 'css',
-        '.c': 'c',
-        '.cpp': 'cpp',
-        '.h': 'c',
-        '.hpp': 'cpp',
-        '.json': 'json',
-        '.md': 'markdown',
-        '.sh': 'bash'
+async function setAdminRole() {
+    const user = await User.findOne({ where: { username: 'admin' } });
+    if (user) {
+        await user.update({ role: 'admin' });
+        console.log('User role updated to "admin"');
     }
-    return ext_to_lang.get(ext, '')
+}
 
-def build_structure(base_path: str, ignore_list: list[str]) -> dict:
-    tree = {}
-    if not os.path.isdir(base_path):
-        return tree
-    
-    for entry in sorted(os.listdir(base_path)):
-        if entry in ignore_list:
-            continue
-
-        full_path = os.path.join(base_path, entry)
-        if os.path.isdir(full_path):
-            if entry in ignore_list:
-                continue
-            tree[entry] = build_structure(full_path, ignore_list)
-        else:
-            if entry not in ignore_list:
-                tree[entry] = None
-    return tree
-
-def structure_to_markdown(tree: dict, indent: int = 0) -> str:
-    md_lines = []
-    for key, value in tree.items():
-        line = "  " * indent + f"- {key}"
-        md_lines.append(line)
-        if isinstance(value, dict):
-            md_lines.append(structure_to_markdown(value, indent + 1))
-    return "\n".join(md_lines)
-
-def gather_files(tree: dict, base_path: str, current_path: str = "") -> list[str]:
-    file_list = []
-    for entry, value in tree.items():
-        new_path = os.path.join(current_path, entry)
-        if isinstance(value, dict):
-            file_list.extend(gather_files(value, base_path, new_path))
-        else:
-            file_list.append(new_path)
-    return file_list
-
-def read_file_content(file_path: str) -> str:
-    """
-    Зчитує текстовий вміст файлу. Якщо файл двійковий або має інше кодування, повертає повідомлення.
-    """
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except UnicodeDecodeError:
-        return f"Файл {file_path} не вдалося прочитати: невідоме кодування або це не текстовий файл."
-
-
-def save_to_md_file(content: str, output_path: str) -> None:
-    """
-    Зберігає текстовий контент у файл формату .md.
-    """
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(content)
-    print(f"Файл збережено як: {output_path}")
-
-
-def generate_markdown(base_path: str, ignore_list: list[str]) -> str:
-    tree = build_structure(base_path, ignore_list)
-    md_structure = "## Структура проєкту\n\n" + structure_to_markdown(tree)
-    files = gather_files(tree, base_path)
-    md_code_parts = ["\n\n## Код файлів\n"]
-    for rel_path in files:
-        full_path = os.path.join(base_path, rel_path)
-        lang = get_language_by_extension(full_path)
-        code = read_file_content(full_path)
-
-        md_code_parts.append(f"### {rel_path}\n")
-        if lang:
-            md_code_parts.append(f"```{lang}\n{code}\n```\n")
-        else:
-            md_code_parts.append(f"```\n{code}\n```\n")
-    return md_structure + "\n".join(md_code_parts)
-
-if __name__ == "__main__":
-    base_path = "."
-    ignore_list = ["test.html", "project.md", ".git", ".DS_Store", "node_modules", "uploads", ".env", "databese.sqlite3", "generator.py", "package.json", "package-lock.json", "SequelizeSummery.md", "StartSummery.md", "Summery2.0.md", "output.md", "MulterSummery.md", "login.html", "profile.html", "register.html", "test.html"]
-    output_md_file = "project.md"
-    
-    # Генеруємо Markdown
-    markdown_content = generate_markdown(base_path, ignore_list)
-    
-    # Зберігаємо у файл .md
-    save_to_md_file(markdown_content, output_md_file)
-
+setAdminRole();
 ```
+

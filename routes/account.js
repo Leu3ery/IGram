@@ -23,6 +23,9 @@ router.patch('/', authenticateJWT, async (req, res) => {
         await user.update({ name, description });
         res.status(200).json({"message": "User updated successfully"});
     } catch (error) {
+        if (error.name === 'SequelizeValidationError') {
+            return res.status(400).json({ message: error.errors[0].message });
+        }
         console.error(error);
         res.status(500).json({"message": "An error occurred while updating the user."});
     }
