@@ -1,0 +1,16 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# IDE specific files
+.idea/
+.vscode/
+.DS_Store
+
+project.modules
+test.py
+database.sqlite
+
+uploads/
