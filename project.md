@@ -108,7 +108,8 @@ const Post = require('./post')(sequelize, DataTypes);
 
 User.hasMany(Post, {
     foreignKey: 'creator', // Specify the foreign key name
-    sourceKey: 'username' // Specify the primary key in the User table
+    sourceKey: 'username', // Specify the primary key in the User table
+    onDelete: 'CASCADE'
 });
 
 Post.belongsTo(User, {
@@ -280,6 +281,9 @@ router.patch('/', authenticateJWT, async (req, res) => {
         await user.update({ name, description });
         res.status(200).json({"message": "User updated successfully"});
     } catch (error) {
+        if (error.name === 'SequelizeValidationError') {
+            return res.status(400).json({ message: error.errors[0].message });
+        }
         console.error(error);
         res.status(500).json({"message": "An error occurred while updating the user."});
     }
@@ -587,7 +591,7 @@ router.delete('/:postId', authenticateJWT, async (req, res) => {
         if (!user) {
             return res.status(400).json({"message": "User not found"});
         }
-        if (post.creator !== user.username) {
+        if (post.creator !== user.username && user.role !== 'admin') {
             return res.status(400).json({"message": "You can only delete your own posts"});
         }
         await post.destroy();
@@ -638,7 +642,7 @@ router.post(
             try {
                 if (user.avatarImage) {
                     const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
-                    fs.unlink(photoPath);
+                    fs.unlinkSync(photoPath);
                 }
             } catch (error) {
                 console.error("Error deleting photo:", error);
@@ -698,7 +702,7 @@ router.post('/post/:postId/image',
             try {
                 if (post.image) {
                     const imagePath = path.join(__dirname, '..', 'uploads', post.image);
-                    fs.unlink(imagePath);
+                    fs.unlinkSync(imagePath);
                 }
             } catch (error) {
                 console.error("Error deleting image:", error);
@@ -742,6 +746,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const { sequelize } = require('./models');
+
 
 const app = express();
 app.use(express.json());
@@ -788,3 +793,1847 @@ async function setAdminRole() {
 setAdminRole();
 ```
 
+### swagger/IGram-swagger-v1.1.yaml
+
+```
+openapi: 3.0.0
+
+info:
+  title: IGram
+  description: IGram pet project
+  version: 0.0.1
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Dev local server
+
+paths:
+  /account/register:
+    post:
+      summary: Register new user
+      requestBody: 
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties: 
+                username:
+                  type: string 
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '201': 
+          description: User created successfully 
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+  /account/login:
+    post:
+      summary: Login to account
+      description: Access and refresh tokens will be returned
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '200': 
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: 
+                    type: string
+                  refreshToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+          description: User not found
+        '500':
+          description: Server Error
+
+  /account/refresh/:
+    post:
+      summary: Send refreshToken to get a new accessToken
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Got new accessToken
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: 
+                  accessToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '403':
+          description: Forbidden (token expired or invalid)
+        '500':
+          description: Server Error
+
+  /account/photo/{username}:
+    get:
+      summary: Get avatar photo
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Avatar photo
+          content:
+            image/png: 
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+            description: Photo not found
+        '500':
+          description: Server Error
+
+  /account/photo/:
+    post:
+      summary: Send new photo for account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: New avatar for account (png or jpeg, max 5MB)
+      responses:
+        '200':
+          description: New photo uploaded successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
+  /account/{username}:
+    get:
+      summary: Get information about user
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Information about user
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+  /account/:
+    patch:
+      summary: Send new information about user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                description:
+                  type: string
+                  maxLength: 300
+      responses:
+        '200':
+          description: Data updated successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # Removed the semicolon and added a proper comment
+
+```
+
+### swagger/IGram-swagger-v1.2.yaml
+
+```
+openapi: 3.0.0
+
+info:
+  title: IGram
+  description: IGram pet project
+  version: 0.0.2
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Dev local server
+
+paths:
+  /account/register:
+    post:
+      summary: Register new user
+      requestBody: 
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties: 
+                username:
+                  type: string 
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '201': 
+          description: User created successfully 
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+  /account/login:
+    post:
+      summary: Login to account
+      description: Access and refresh tokens will be returned
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '200': 
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: 
+                    type: string
+                  refreshToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+          description: User not found
+        '500':
+          description: Server Error
+
+  /account/refresh/:
+    post:
+      summary: Send refreshToken to get a new accessToken
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Got new accessToken
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: 
+                  accessToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '403':
+          description: Forbidden (token expired or invalid)
+        '500':
+          description: Server Error
+
+  /account/photo/{username}:
+    get:
+      summary: Get avatar photo
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Avatar photo
+          content:
+            image/png: 
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+            description: Photo not found
+        '500':
+          description: Server Error
+
+  /account/photo/:
+    post:
+      summary: Send new photo for account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: New avatar for account (png or jpeg, max 5MB)
+      responses:
+        '200':
+          description: New photo uploaded successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
+  /account/{username}:
+    get:
+      summary: Get information about user
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Information about user
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+  /account/:
+    get:
+      summary: Get info about yourself
+      security:
+          - bearerAuth: []
+      responses: 
+        '200':
+            description: username name description
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            username:
+                                type: string
+                            name: 
+                                type: string
+                            description:
+                                type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+        
+
+                        
+    patch:
+      summary: Send new information about user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                description:
+                  type: string
+                  maxLength: 300
+      responses:
+        '200':
+          description: Data updated successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # Removed the semicolon and added a proper comment
+
+```
+
+### swagger/IGram-swagger-v1.3.yaml
+
+```
+openapi: 3.0.0
+
+info:
+  title: IGram
+  description: IGram pet project
+  version: 0.0.3
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Dev local server
+
+paths:
+  /auth/register:
+    post:
+      summary: Register new user
+      requestBody: 
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties: 
+                username:
+                  type: string 
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '201': 
+          description: User created successfully 
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+  /auth/login:
+    post:
+      summary: Login to account
+      description: Access and refresh tokens will be returned
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '200': 
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: 
+                    type: string
+                  refreshToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+          description: User not found
+        '500':
+          description: Server Error
+
+  /auth/refresh/:
+    post:
+      summary: Send refreshToken to get a new accessToken
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Got new accessToken
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: 
+                  accessToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '403':
+          description: Forbidden (token expired or invalid)
+        '500':
+          description: Server Error
+
+  /account/photo/{username}:
+    get:
+      summary: Get avatar photo
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Avatar photo
+          content:
+            image/png: 
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+            description: Photo not found
+        '500':
+          description: Server Error
+
+  /account/photo/:
+    post:
+      summary: Send new photo for account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: New avatar for account (png or jpeg, max 5MB)
+      responses:
+        '200':
+          description: New photo uploaded successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
+  /account/{username}:
+    get:
+      summary: Get information about user
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Information about user
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+  /account/:
+    get:
+      summary: Get info about yourself
+      security:
+          - bearerAuth: []
+      responses: 
+        '200':
+            description: username name description
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            username:
+                                type: string
+                            name: 
+                                type: string
+                            description:
+                                type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+        
+
+                        
+    patch:
+      summary: Send new information about user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                description:
+                  type: string
+                  maxLength: 300
+      responses:
+        '200':
+          description: Data updated successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /account/list/:
+    get:
+      summary: Get list of users
+      parameters: 
+        - in: query
+          name: offSet
+          schema:
+            type: integer
+            default: 0
+          description: The number of items to skip before starting to collect the result set
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: The numbers of items to return
+        - in: query
+          name: startsWith
+          schema:
+            type: string
+            default: ""
+          description: Start of the word
+      responses:
+        '200':
+          content:
+            application/json: 
+              schema:
+                type:
+                  array
+                items:
+                    type: object
+                    properties: 
+                      username: 
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                example: 
+                  [
+                    {
+                      "username": "leuzery",
+                      "name": "bla bla",
+                      "description": "bla bla bla"
+                    }
+                  ]
+          description: Returns list with usernames
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+        
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # Removed the semicolon and added a proper comment
+
+```
+
+### swagger/IGram-swagger-v1.4.yaml
+
+```
+openapi: 3.0.0
+
+info:
+  title: IGram
+  description: IGram pet project
+  version: 0.0.4
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Dev local server
+
+paths:
+  /auth/register:
+    post:
+      summary: Register new user
+      requestBody: 
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties: 
+                username:
+                  type: string 
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '201': 
+          description: User created successfully 
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+  /auth/login:
+    post:
+      summary: Login to account
+      description: Access and refresh tokens will be returned
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '200': 
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: 
+                    type: string
+                  refreshToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+          description: User not found
+        '500':
+          description: Server Error
+
+  /auth/refresh/:
+    post:
+      summary: Send refreshToken to get a new accessToken
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Got new accessToken
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: 
+                  accessToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '403':
+          description: Forbidden (token expired or invalid)
+        '500':
+          description: Server Error
+
+  /account/photo/{username}:
+    get:
+      summary: Get avatar photo
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Avatar photo
+          content:
+            image/png: 
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+            description: Photo not found
+        '500':
+          description: Server Error
+
+  /account/photo/:
+    post:
+      summary: Send new photo for account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: New avatar for account (png or jpeg, max 5MB)
+      responses:
+        '200':
+          description: New photo uploaded successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
+  /account/{username}:
+    get:
+      summary: Get information about user
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Information about user
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+    delete:
+      summary: Delete user account if you are admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User was delited
+        '400':
+          description: Bad request (incorrectly filled in fields) or role is not admin
+        '500':
+          description: Server Error
+
+  /account/:
+    get:
+      summary: Get info about yourself
+      security:
+          - bearerAuth: []
+      responses: 
+        '200':
+            description: username name description
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            username:
+                                type: string
+                            name: 
+                                type: string
+                            description:
+                                type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    delete:
+      summary: Delete own account
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account was delited
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    patch:
+      summary: Send new information about user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                description:
+                  type: string
+                  maxLength: 300
+      responses:
+        '200':
+          description: Data updated successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /account/list/:
+    get:
+      summary: Get list of users
+      parameters: 
+        - in: query
+          name: offSet
+          schema:
+            type: integer
+            default: 0
+          description: The number of items to skip before starting to collect the result set
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: The numbers of items to return
+        - in: query
+          name: startsWith
+          schema:
+            type: string
+            default: ""
+          description: Start of the word
+      responses:
+        '200':
+          content:
+            application/json: 
+              schema:
+                type:
+                  array
+                items:
+                    type: object
+                    properties: 
+                      username: 
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                example: 
+                  [
+                    {
+                      "username": "leuzery",
+                      "name": "bla bla",
+                      "description": "bla bla bla"
+                    }
+                  ]
+          description: Returns list with usernames
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+
+        
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # Removed the semicolon and added a proper comment
+
+```
+
+### swagger/IGram-swagger-v1.5.yaml
+
+```
+openapi: 3.0.0
+
+info:
+  title: IGram
+  description: IGram pet project
+  version: 0.0.5
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Dev local server
+
+paths:
+  /auth/register:
+    post:
+      summary: Register new user
+      requestBody: 
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties: 
+                username:
+                  type: string 
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '201': 
+          description: User created successfully 
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+
+  /auth/login:
+    post:
+      summary: Login to account
+      description: Access and refresh tokens will be returned
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  maxLength: 32
+                  minLength: 3
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 32
+      responses:
+        '200': 
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: 
+                    type: string
+                  refreshToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+          description: User not found
+        '500':
+          description: Server Error
+
+  /auth/refresh/:
+    post:
+      summary: Send refreshToken to get a new accessToken
+      requestBody:
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Got new accessToken
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: 
+                  accessToken:
+                    type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '403':
+          description: Forbidden (token expired or invalid)
+        '500':
+          description: Server Error
+
+  /account/photo/{username}:
+    get:
+      summary: Get avatar photo
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Avatar photo
+          content:
+            image/png: 
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '404':
+            description: Photo not found
+        '500':
+          description: Server Error
+
+  /account/photo/:
+    post:
+      summary: Send new photo for account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: New avatar for account (png or jpeg, max 5MB)
+      responses:
+        '200':
+          description: New photo uploaded successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
+  /account/{username}:
+    get:
+      summary: Get information about user
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Information about user
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+    delete:
+      summary: Delete user account if you are admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User was delited
+        '400':
+          description: Bad request (incorrectly filled in fields) or role is not admin
+        '500':
+          description: Server Error
+
+  /account/:
+    get:
+      summary: Get info about yourself
+      security:
+          - bearerAuth: []
+      responses: 
+        '200':
+            description: username name description
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            username:
+                                type: string
+                            name: 
+                                type: string
+                            description:
+                                type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    delete:
+      summary: Delete own account
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account was delited
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    patch:
+      summary: Send new information about user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                description:
+                  type: string
+                  maxLength: 300
+      responses:
+        '200':
+          description: Data updated successfully
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /account/list/:
+    get:
+      summary: Get list of users
+      parameters: 
+        - in: query
+          name: offSet
+          schema:
+            type: integer
+            default: 0
+          description: The number of items to skip before starting to collect the result set
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: The numbers of items to return
+        - in: query
+          name: startsWith
+          schema:
+            type: string
+            default: ""
+          description: Start of the word
+      responses:
+        '200':
+          content:
+            application/json: 
+              schema:
+                type:
+                  array
+                items:
+                    type: object
+                    properties: 
+                      username: 
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                example: 
+                  [
+                    {
+                      "username": "leuzery",
+                      "name": "bla bla",
+                      "description": "bla bla bla"
+                    }
+                  ]
+          description: Returns list with usernames
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+  /post/:
+    post:
+      summary: Create a post
+      security:
+        - bearerAuth: []
+      requestBody: 
+        required: true
+        content:
+          application/json: 
+            schema: 
+              type: object
+              required:
+                - title
+              properties: 
+                title:
+                  type: string
+                  minLength: 3
+                  maxLength: 64
+                content:
+                  type: string
+                  maxLength: 500
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Post Image (png or jpeg, max 5MB)
+      responses:
+        '201':
+          description: Post successfully created
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /post/{postId}/image:
+    post:
+      summary: Post image to existing post by postId
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: string
+      requestBody: 
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: 
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Post Image (png or jpeg, max 5MB)
+      responses:
+        '201':
+          description: Image was successfully posted
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    get:
+      summary: Get image by postId
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get image for post
+          content:
+            image/png: 
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /post/{postId}:
+    get:
+      summary: Get post by id
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Info about note
+          content:
+            application/json: 
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  creator: 
+                    type: string
+                  title:
+                    type: string
+                  content:
+                    type: string
+    patch:
+      summary: Update post
+      security: 
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: string
+      requestBody: 
+        required: true
+        content:
+          application/json: 
+            schema: 
+              type: object
+              properties: 
+                title:
+                  type: string
+                  minLength: 3
+                  maxLength: 64
+                content:
+                  type: string
+                  maxLength: 500
+      responses:
+        '200':
+          description: Post was updated
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    delete:
+      summary: Delete post by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Post was delited
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
+                
+                  
+  /post/list/:
+    get:
+      summary: Get list of posts
+      parameters: 
+        - in: query
+          name: offSet
+          schema:
+            type: integer
+            default: 0
+          description: The number of posts to skip before starting to collect the result set
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: The numbers of posts to return
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json: 
+              schema:
+                type:
+                  array
+                items:
+                    type: object
+                    properties: 
+                      id: 
+                        type: integer
+                      creator:
+                        type: string
+                      title:
+                        type: string
+                      content:
+                        type: string
+                example: 
+                  [
+                    {
+                      "id": 1,
+                      "creator": "admin",
+                      "title": "rules",
+                      "content": "more about rules",
+                      "createdAt": "2025-01-29T11:11:20.822Z",
+                    }
+                  ]
+          description: Returns list with usernames
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '500':
+          description: Server Error
+      
+      
+
+
+        
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT # Removed the semicolon and added a proper comment
+
+```
+
+### test.py
+
+```python
+import os
+
+def get_language_by_extension(file_path: str) -> str:
+    _, ext = os.path.splitext(file_path.lower())
+    ext_to_lang = {
+        '.py': 'python',
+        '.java': 'java',
+        '.js': 'javascript',
+        '.ts': 'typescript',
+        '.html': 'html',
+        '.css': 'css',
+        '.c': 'c',
+        '.cpp': 'cpp',
+        '.h': 'c',
+        '.hpp': 'cpp',
+        '.json': 'json',
+        '.md': 'markdown',
+        '.sh': 'bash'
+    }
+    return ext_to_lang.get(ext, '')
+
+def build_structure(base_path: str, ignore_list: list[str]) -> dict:
+    tree = {}
+    if not os.path.isdir(base_path):
+        return tree
+    
+    for entry in sorted(os.listdir(base_path)):
+        if entry in ignore_list:
+            continue
+
+        full_path = os.path.join(base_path, entry)
+        if os.path.isdir(full_path):
+            if entry in ignore_list:
+                continue
+            tree[entry] = build_structure(full_path, ignore_list)
+        else:
+            if entry not in ignore_list:
+                tree[entry] = None
+    return tree
+
+def structure_to_markdown(tree: dict, indent: int = 0) -> str:
+    md_lines = []
+    for key, value in tree.items():
+        line = "  " * indent + f"- {key}"
+        md_lines.append(line)
+        if isinstance(value, dict):
+            md_lines.append(structure_to_markdown(value, indent + 1))
+    return "\n".join(md_lines)
+
+def gather_files(tree: dict, base_path: str, current_path: str = "") -> list[str]:
+    file_list = []
+    for entry, value in tree.items():
+        new_path = os.path.join(current_path, entry)
+        if isinstance(value, dict):
+            file_list.extend(gather_files(value, base_path, new_path))
+        else:
+            file_list.append(new_path)
+    return file_list
+
+def read_file_content(file_path: str) -> str:
+    """
+    Зчитує текстовий вміст файлу. Якщо файл двійковий або має інше кодування, повертає повідомлення.
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except UnicodeDecodeError:
+        return f"Файл {file_path} не вдалося прочитати: невідоме кодування або це не текстовий файл."
+
+
+def save_to_md_file(content: str, output_path: str) -> None:
+    """
+    Зберігає текстовий контент у файл формату .md.
+    """
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print(f"Файл збережено як: {output_path}")
+
+
+def generate_markdown(base_path: str, ignore_list: list[str]) -> str:
+    tree = build_structure(base_path, ignore_list)
+    md_structure = "## Структура проєкту\n\n" + structure_to_markdown(tree)
+    files = gather_files(tree, base_path)
+    md_code_parts = ["\n\n## Код файлів\n"]
+    for rel_path in files:
+        full_path = os.path.join(base_path, rel_path)
+        lang = get_language_by_extension(full_path)
+        code = read_file_content(full_path)
+
+        md_code_parts.append(f"### {rel_path}\n")
+        if lang:
+            md_code_parts.append(f"```{lang}\n{code}\n```\n")
+        else:
+            md_code_parts.append(f"```\n{code}\n```\n")
+    return md_structure + "\n".join(md_code_parts)
+
+if __name__ == "__main__":
+    base_path = "."
+    ignore_list = ["test.html", "project.md", ".git", ".DS_Store", "node_modules", "uploads", ".env", "databese.sqlite3", "generator.py", "package.json", "package-lock.json", "SequelizeSummery.md", "StartSummery.md", "Summery2.0.md", "output.md", "MulterSummery.md", "login.html", "profile.html", "register.html", "test.html"]
+    output_md_file = "project.md"
+    
+    # Генеруємо Markdown
+    markdown_content = generate_markdown(base_path, ignore_list)
+    
+    # Зберігаємо у файл .md
+    save_to_md_file(markdown_content, output_md_file)
+
+```

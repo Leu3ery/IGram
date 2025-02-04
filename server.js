@@ -11,6 +11,7 @@ app.use(cors());
 app.use('/api/v1/auth/', require('./routes/auth'));
 app.use('/api/v1/account/', require('./routes/account'));
 app.use('/api/v1/post/', require('./routes/post'));
+app.use('/api/v1/contact/', require('./routes/contact'));
 app.use('/api/v1/', require('./routes/uploads'));
 
 

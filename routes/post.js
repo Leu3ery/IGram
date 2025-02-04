@@ -107,7 +107,7 @@ router.delete('/:postId', authenticateJWT, async (req, res) => {
         if (!user) {
             return res.status(400).json({"message": "User not found"});
         }
-        if (post.creator !== user.username) {
+        if (post.creator !== user.username && user.role !== 'admin') {
             return res.status(400).json({"message": "You can only delete your own posts"});
         }
         await post.destroy();
