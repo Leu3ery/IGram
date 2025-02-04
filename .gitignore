@@ -8,9 +8,12 @@ node_modules/
 .idea/
 .vscode/
 .DS_Store
+swagger/.DS_Store
 
 project.modules
 test.py
 database.sqlite
 
 uploads/
+
+project.md
