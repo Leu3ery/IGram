@@ -23,6 +23,8 @@ module.exports = (sequelize, DataTypes) => {
             },
             onDelete: 'CASCADE'
         }
+    }, {
+        timestamps: false
     });
     return chatTable;
 };

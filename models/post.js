@@ -1,5 +1,14 @@
 module.exports = (sequelize, DataTypes) => {
     const Post = sequelize.define('Post', {
+        userId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: 'User',
+                key: 'id'
+            },
+            onDelete: 'CASCADE'
+        },
         creator: {
             type: DataTypes.STRING,
             allowNull: false,

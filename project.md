@@ -6,6 +6,8 @@
   - authenticateJWT.js
   - multerMiddleware.js
 - models
+  - chat.js
+  - chatTable.js
   - contact.js
   - index.js
   - post.js
@@ -35,12 +37,15 @@ node_modules/
 .idea/
 .vscode/
 .DS_Store
+swagger/.DS_Store
 
 project.modules
 test.py
 database.sqlite
 
 uploads/
+
+project.md
 ```
 
 ### database.sqlite
@@ -119,6 +124,63 @@ const upload = multer({
 module.exports = upload;
 ```
 
+### models/chat.js
+
+```javascript
+module.exports = (sequelize, DataTypes) => {
+    const Chat = sequelize.define('Chat', {
+        name: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            len: [3, 32],
+            validate: {
+                notNull: {
+                    msg: 'Name is required'
+                },
+                len: {
+                    args: [3, 32],
+                    msg: 'Name must be between 3 and 32 characters long'
+                }
+            }
+        }
+    });
+    return Chat;
+};
+```
+
+### models/chatTable.js
+
+```javascript
+module.exports = (sequelize, DataTypes) => {
+    const chatTable = sequelize.define('ChatTable', {
+        id: {
+            type: DataTypes.INTEGER,
+            primaryKey: true,
+            autoIncrement: true
+        },
+        chatId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: 'Chat',
+                key: 'id'
+            },
+            onDelete: 'CASCADE'
+        },
+        userId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: 'User',
+                key: 'id'
+            },
+            onDelete: 'CASCADE'
+        }
+    });
+    return chatTable;
+};
+```
+
 ### models/contact.js
 
 ```javascript
@@ -126,13 +188,28 @@ module.exports = (sequelize, DataTypes) => {
     const Contact = sequelize.define(
         'Contact',
         {
+            id: {
+                type: DataTypes.INTEGER,
+                primaryKey: true,
+                autoIncrement: true
+            },
             senderId: {
                 type: DataTypes.INTEGER,
-                allowNull: false
+                allowNull: false,
+                references: {
+                    model: 'User',
+                    key: 'id'
+                },
+                onDelete: 'CASCADE' 
             },
             receiverId: {
                 type: DataTypes.INTEGER,
-                allowNull: false
+                allowNull: false,
+                references: {
+                    model: 'User',
+                    key: 'id',
+                    onDelete: 'CASCADE'
+                }
             },
             isAccepted: {
                 type: DataTypes.BOOLEAN,
@@ -161,6 +238,8 @@ const sequelize = new Sequelize({
 const User = require('./user')(sequelize, DataTypes);
 const Post = require('./post')(sequelize, DataTypes);
 const Contact = require('./contact')(sequelize, DataTypes);
+const Chat = require('./chat')(sequelize, DataTypes);
+const ChatTable = require('./chatTable')(sequelize, DataTypes);
 
 User.hasMany(Post, {
     foreignKey: 'creator', // Specify the foreign key name
@@ -177,14 +256,31 @@ User.belongsToMany(User, {
     as: 'contacts',
     through: Contact,
     foreignKey: 'senderId',  // The user who sent the contact request
-    otherKey: 'receiverId'  // The user who receives the contact request
+    otherKey: 'receiverId',  // The user who receives the contact request
+    onDelete: 'CASCADE'
+});
+
+Chat.belongsToMany(User, {
+    through: ChatTable,
+    foreignKey: 'chatId',
+    otherKey: 'userId',
+    onDelete: 'CASCADE'
+});
+
+User.belongsToMany(Chat, {
+    through: ChatTable,
+    foreignKey: 'userId',
+    otherKey: 'chatId',
+    onDelete: 'CASCADE'
 });
 
 module.exports = {
     sequelize,
     User,
     Post,
-    Contact
+    Contact,
+    Chat,
+    ChatTable
 }
 ```
 
@@ -193,6 +289,15 @@ module.exports = {
 ```javascript
 module.exports = (sequelize, DataTypes) => {
     const Post = sequelize.define('Post', {
+        userId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: 'User',
+                key: 'id'
+            },
+            onDelete: 'CASCADE'
+        },
         creator: {
             type: DataTypes.STRING,
             allowNull: false,
@@ -768,8 +873,8 @@ router.post('/', authenticateJWT, async (req, res) => {
         if (content && content.length > 500) {
             return res.status(400).json({"message": "Content length must be less than 500 characters"});
         }
-        const post = await Post.create({title, content, creator: creatorAccount.username});
-        res.status(201).json({"message": "Post created successfully", "postId": post.id});
+        const post = await Post.create({title, content, creator: creatorAccount.username, userId: creatorAccount.id});
+        res.status(201).json({"message": "Post created successfully"});
     } catch (error) {
         console.log(error);
         res.status(500).json({"message": "Something went wrong"});
@@ -1037,7 +1142,7 @@ app.use((err, req, res, next) => {
 
 
 const PORT = 3000;
-sequelize.sync().then(() => {
+sequelize.sync({force: false}).then(() => {
     app.listen(PORT, () => {
         console.log(`Server is running on port http://localhost:${PORT}`);
     });

@@ -17,8 +17,8 @@ router.post('/', authenticateJWT, async (req, res) => {
         if (content && content.length > 500) {
             return res.status(400).json({"message": "Content length must be less than 500 characters"});
         }
-        const post = await Post.create({title, content, creator: creatorAccount.username});
-        res.status(201).json({"message": "Post created successfully", "postId": post.id});
+        const post = await Post.create({title, content, creator: creatorAccount.username, userId: creatorAccount.id});
+        res.status(201).json({"message": "Post created successfully"});
     } catch (error) {
         console.log(error);
         res.status(500).json({"message": "Something went wrong"});

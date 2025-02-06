@@ -11,14 +11,14 @@ const Chat = require('./chat')(sequelize, DataTypes);
 const ChatTable = require('./chatTable')(sequelize, DataTypes);
 
 User.hasMany(Post, {
-    foreignKey: 'creator', // Specify the foreign key name
-    sourceKey: 'username', // Specify the primary key in the User table
+    foreignKey: 'userId', // Specify the foreign key name
+    sourceKey: 'id', // Specify the primary key in the User table
     onDelete: 'CASCADE'
 });
 
 Post.belongsTo(User, {
-    foreignKey: 'creator', // Specify the foreign key name
-    targetKey: 'username' // Specify the primary key in the User table
+    foreignKey: 'userId', // Specify the foreign key name
+    targetKey: 'id' // Specify the primary key in the User table
 });
 
 User.belongsToMany(User, {
