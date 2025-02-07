@@ -12,7 +12,6 @@ module.exports = (sequelize, DataTypes) => {
         creator: {
             type: DataTypes.STRING,
             allowNull: false,
-            len: [3, 32],
             validate: {
                 notNull: {
                     msg: 'Creator is required'
@@ -26,7 +25,6 @@ module.exports = (sequelize, DataTypes) => {
         title: {
             type: DataTypes.STRING,
             allowNull: false,
-            len: [3, 64],
             validate: {
                 notNull: {
                     msg: 'Title is required'
@@ -40,7 +38,6 @@ module.exports = (sequelize, DataTypes) => {
         content: {
             type: DataTypes.STRING,
             allowNull: true,
-            len: [0, 500],
             validate: {
                 len: {
                     args: [0, 500],

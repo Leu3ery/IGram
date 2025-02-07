@@ -4,7 +4,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             unique: true,
             allowNull: false,
-            len: [3, 32],
             validate: {
                 notNull: {
                     msg: 'Username is required'
@@ -27,7 +26,6 @@ module.exports = (sequelize, DataTypes) => {
         name: {
             type: DataTypes.STRING,
             allowNull: true,
-            len: [3, 32],
             validate: {
                 len: {
                     args: [3, 32],
@@ -38,7 +36,6 @@ module.exports = (sequelize, DataTypes) => {
         description: {
             type: DataTypes.STRING,
             allowNull: true,
-            len: [0, 512],
             validate: {
                 len: {
                     args: [0, 512],

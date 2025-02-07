@@ -16,12 +16,20 @@ app.use('/api/v1/', require('./routes/uploads'));
 
 
 app.use((err, req, res, next) => {
+    logger.error(err);
     if (err instanceof multer.MulterError) {
         return res.status(400).json({ message: err.message });
     }
-
-    console.error(err.stack);
-    res.status(500).json({ message: 'Something went wrong!' });
+    
+    if (err.name === 'SequelizeValidationError') {
+        return res.status(400).json({ message: err.errors[0].message });
+    }
+    
+    res.status(500).json({ 
+        message: process.env.NODE_ENV === 'production' 
+            ? 'Something went wrong!' 
+            : err.message 
+    });
 });
 
 

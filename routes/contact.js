@@ -4,7 +4,7 @@ const { Contact, User } = require('../models/index');
 const authenticateJWT = require('../middleware/authenticateJWT');
 const { Op } = require('sequelize');
 
-router.patch('/received/:username', authenticateJWT, async (req, res) => {
+router.patch('/received/:username', authenticateJWT, async (req, res, next) => {
     try {
         const username = req.params.username;
         if (!username) {
@@ -29,7 +29,7 @@ router.patch('/received/:username', authenticateJWT, async (req, res) => {
     }
 });
 
-router.delete('/received/:username', authenticateJWT, async (req, res) => {
+router.delete('/received/:username', authenticateJWT, async (req, res, next) => {
     try {
         const username = req.params.username;
         if (!username) {
@@ -54,7 +54,7 @@ router.delete('/received/:username', authenticateJWT, async (req, res) => {
     }
 });
 
-router.get('/received', authenticateJWT, async (req, res) => {
+router.get('/received', authenticateJWT, async (req, res, next) => {
     try {
         const contacts = await Contact.findAll({where: {
             receiverId: req.user.id,
@@ -72,7 +72,7 @@ router.get('/received', authenticateJWT, async (req, res) => {
     }
 });
 
-router.delete('/sent/:username', authenticateJWT, async (req, res) => {
+router.delete('/sent/:username', authenticateJWT, async (req, res, next) => {
     try {
         const username = req.params.username;
         if (!username) {
@@ -97,7 +97,7 @@ router.delete('/sent/:username', authenticateJWT, async (req, res) => {
     }
 });
 
-router.get('/sent', authenticateJWT, async (req, res) => {
+router.get('/sent', authenticateJWT, async (req, res, next) => {
     try {
         const contacts = await Contact.findAll({where: {
             senderId: req.user.id,
@@ -115,7 +115,7 @@ router.get('/sent', authenticateJWT, async (req, res) => {
     }
 });
 
-router.get('/', authenticateJWT, async (req, res) => {
+router.get('/', authenticateJWT, async (req, res, next) => {
     try {
         const contacts = await Contact.findAll({where: {
             [Op.or]: [
@@ -137,7 +137,7 @@ router.get('/', authenticateJWT, async (req, res) => {
 });
 
 
-router.post('/:username', authenticateJWT, async (req, res) => {
+router.post('/:username', authenticateJWT, async (req, res, next) => {
     try {
         const {username} = req.params;
         if (!username) {
@@ -169,7 +169,7 @@ router.post('/:username', authenticateJWT, async (req, res) => {
     }
 });
 
-router.delete('/:username', authenticateJWT, async (req, res) => {
+router.delete('/:username', authenticateJWT, async (req, res, next) => {
     try {
         const username = req.params.username;
         if (!username) {

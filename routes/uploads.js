@@ -31,7 +31,7 @@ router.post(
             try {
                 if (user.avatarImage) {
                     const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
-                    fs.unlinkSync(photoPath);
+                    await fs.promises.unlink(photoPath);
                 }
             } catch (error) {
                 console.error("Error deleting photo:", error);
@@ -91,7 +91,7 @@ router.post('/post/:postId/image',
             try {
                 if (post.image) {
                     const imagePath = path.join(__dirname, '..', 'uploads', post.image);
-                    fs.unlinkSync(imagePath);
+                    await fs.promises.unlink(imagePath);
                 }
             } catch (error) {
                 console.error("Error deleting image:", error);

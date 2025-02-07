@@ -21,9 +21,9 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
                 references: {
                     model: 'User',
-                    key: 'id',
-                    onDelete: 'CASCADE'
-                }
+                    key: 'id'
+                },
+                onUpdate: 'CASCADE'
             },
             isAccepted: {
                 type: DataTypes.BOOLEAN,
