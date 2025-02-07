@@ -9,6 +9,7 @@ const Post = require('./post')(sequelize, DataTypes);
 const Contact = require('./contact')(sequelize, DataTypes);
 const Chat = require('./chat')(sequelize, DataTypes);
 const ChatTable = require('./chatTable')(sequelize, DataTypes);
+const Message = require('./message')(sequelize, DataTypes);
 
 User.hasMany(Post, {
     foreignKey: 'userId', // Specify the foreign key name
@@ -43,11 +44,42 @@ User.belongsToMany(Chat, {
     onDelete: 'CASCADE'
 });
 
+Message.belongsTo(Chat, {
+    foreignKey: 'chatId',
+    onDelete: 'CASCADE'
+});
+
+Chat.hasMany(Message, {
+    foreignKey: 'chatId',
+    onDelete: 'CASCADE'
+});
+
+Message.belongsTo(User, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
+
+User.hasMany(Message, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
+
+User.hasMany(Chat, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
+
+Chat.belongsTo(User, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
+
 module.exports = {
     sequelize,
     User,
     Post,
     Contact,
     Chat,
-    ChatTable
+    ChatTable,
+    Message
 }
