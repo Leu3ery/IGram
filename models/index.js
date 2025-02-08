@@ -64,15 +64,6 @@ User.hasMany(Message, {
     onDelete: 'CASCADE'
 });
 
-User.hasMany(Chat, {
-    foreignKey: 'userId',
-    onDelete: 'CASCADE'
-});
-
-Chat.belongsTo(User, {
-    foreignKey: 'userId',
-    onDelete: 'CASCADE'
-});
 
 module.exports = {
     sequelize,

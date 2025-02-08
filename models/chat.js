@@ -12,15 +12,6 @@ module.exports = (sequelize, DataTypes) => {
                     msg: 'Name must be between 3 and 32 characters long'
                 }
             }
-        },
-        userId: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-            references: {
-                model: 'User',
-                key: 'id'
-            },
-            onDelete: 'CASCADE'
         }
     });
     return Chat;
