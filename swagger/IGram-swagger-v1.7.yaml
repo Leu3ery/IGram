@@ -6,10 +6,13 @@ info:
     **Changelog**
 
     *Added:*
-    - contacts - /contact/
-    - sent contacts - /contact/sent/
-    - received contacts - /contact/received/
-  version: 0.0.6
+    - chat - /chat
+    - users in chat - /chat/user
+    - list of chats you are in - /chat/list
+
+    **In each response you will get json like this: {"message": "User not found"}**
+
+  version: 0.0.7
 
 servers:
   - url: http://localhost:3000/api/v1
@@ -756,7 +759,7 @@ paths:
 
   /contact/received:
     get:
-      summary: Get list with the received contacts
+      summary: Get list with the received requests
       security:
         - bearerAuth: []
       responses:
@@ -785,7 +788,279 @@ paths:
           description: Forbidden
         '500':
           description: Server Error
+  /chat:
+    post:
+      security: 
+        - bearerAuth: []
+      summary: Create new chat 
+      description: You will be set as admin and added in chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: name lenght [3, 32]
+              type: object
+              properties:
+                name:
+                  type: string
+              required:
+                - name
+      responses:
+        '201':
+          description: Chat successfully created
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /chat/{chatId}:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Get info about chat by chatId
+      description: You will get info if you are in this chat
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Info about chat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string 
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+        '500':
+          description: Server Error
+    patch:
+      security:
+        - bearerAuth: []
+      summary: Update name of chat
+      description: You can change name of chat if you are admin of this chat
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: name lenght [3, 32]
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Name successfully updated
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    delete:
+      security:
+        - bearerAuth: []
+      summary: Delete chat
+      description: You can delete chat only if you are an admin
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Chat was deleted
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /chat/user/{chatId}:
+    delete:
+      security:
+        - bearerAuth: []
+      summary: Delete user from chat or leave from chat
+      description: You cann delete user from chat only if you are an admin of you want delete yourself(leave)
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User was deleted
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    get:
+      security:
+        - bearerAuth: []
+      summary: Get list of users in chat
+      description: Only if you are in this chat
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: 
+                      type: string
+                    username:
+                      type: string
+                    name:
+                      type: string
+                    isAdmin:
+                      type: boolean
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+    post:
+      security:
+        - bearerAuth: []
+      summary: Add user in chat
+      description: Only if you are an admin and user you whan to add is your friend
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User was successfully added
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /chat/admin/{chatId}:
+    patch:
+      security:
+        - bearerAuth: []
+      summary: Set new admin
+      description: You can set new admin only if you are admin of this chat and this user is a user in this chat
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User was set as an admin
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+  /chat/list:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Get list of your chats
+      parameters:
+        - in: query
+          name: startsWith
+          required: false
+          schema: 
+            type: string
+            default: ""
+      responses:
+        '200':
+          description: List of chats
+          content:
+            application/json:
+              schema: 
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
 
+      
 components:
   securitySchemes:
     bearerAuth:
