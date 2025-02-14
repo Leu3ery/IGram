@@ -31,7 +31,7 @@ router.get('/list', authenticateJWT, async (req, res, next) => {
                 model: Chat,
                 where: whereClause,
                 attributes: ['id', 'name'],
-                through: { attributes: [] }
+                through: { attributes: [] },
                 }
             ]
         });

@@ -53,7 +53,7 @@ router.get('/account/photo/:username', async (req, res) => {
     }
 
     if (!user.avatarImage) {
-        return res.status(404).json({ message: 'Photo not found' });
+        return res.status(400).json({ message: 'Photo not found' });
     }
     const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
     res.sendFile(photoPath);
@@ -114,7 +114,7 @@ router.get('/post/:postId/image', async (req, res) => {
             return res.status(400).json({ message: 'Post not found' });
         }
         if (!post.image) {
-            return res.status(404).json({ message: 'Image not found' });
+            return res.status(400).json({ message: 'Image not found' });
         }
         const imagePath = path.join(__dirname, '..', 'uploads', post.image);
         res.sendFile(imagePath);

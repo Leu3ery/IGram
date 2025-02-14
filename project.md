@@ -10,16 +10,21 @@
   - chatTable.js
   - contact.js
   - index.js
+  - message.js
   - post.js
   - user.js
 - routes
   - account.js
   - auth.js
+  - chat.js
   - contact.js
   - post.js
   - uploads.js
 - server.js
 - setAdmin.js
+- websocket
+  - JWTMiddleware.js
+  - hello.js
 
 ## Код файлів
 
@@ -62,11 +67,11 @@ const authenticateJWT = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader) {
         const token = authHeader.split(' ')[1];
-        jwt.verify(token, process.env.JWT_ACCESS, (err, user) => {
+        jwt.verify(token, process.env.JWT_ACCESS, (err, id) => {
             if (err) {
                 return res.sendStatus(403);
             }
-            req.user = user;
+            req.user = id;
             next();
         });
     } else {
@@ -131,7 +136,6 @@ module.exports = (sequelize, DataTypes) => {
         name: {
             type: DataTypes.STRING,
             allowNull: false,
-            len: [3, 32],
             validate: {
                 notNull: {
                     msg: 'Name is required'
@@ -155,7 +159,8 @@ module.exports = (sequelize, DataTypes) => {
         id: {
             type: DataTypes.INTEGER,
             primaryKey: true,
-            autoIncrement: true
+            autoIncrement: true,
+            allowNull: false
         },
         chatId: {
             type: DataTypes.INTEGER,
@@ -174,6 +179,11 @@ module.exports = (sequelize, DataTypes) => {
                 key: 'id'
             },
             onDelete: 'CASCADE'
+        },
+        isAdmin: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
         }
     }, {
         timestamps: false
@@ -241,6 +251,7 @@ const Post = require('./post')(sequelize, DataTypes);
 const Contact = require('./contact')(sequelize, DataTypes);
 const Chat = require('./chat')(sequelize, DataTypes);
 const ChatTable = require('./chatTable')(sequelize, DataTypes);
+const Message = require('./message')(sequelize, DataTypes);
 
 User.hasMany(Post, {
     foreignKey: 'userId', // Specify the foreign key name
@@ -275,14 +286,77 @@ User.belongsToMany(Chat, {
     onDelete: 'CASCADE'
 });
 
+Message.belongsTo(Chat, {
+    foreignKey: 'chatId',
+    onDelete: 'CASCADE'
+});
+
+Chat.hasMany(Message, {
+    foreignKey: 'chatId',
+    onDelete: 'CASCADE'
+});
+
+Message.belongsTo(User, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
+
+User.hasMany(Message, {
+    foreignKey: 'userId',
+    onDelete: 'CASCADE'
+});
+
+
 module.exports = {
     sequelize,
     User,
     Post,
     Contact,
     Chat,
-    ChatTable
+    ChatTable,
+    Message
 }
+```
+
+### models/message.js
+
+```javascript
+module.exports = (sequelize, DataTypes) => {
+    const Message = sequelize.define('Message', {
+        chatId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: 'Chat',
+                key: 'id'
+            },
+            onDelete: 'CASCADE'
+        },
+        userId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: 'User',
+                key: 'id'
+            },
+            onDelete: 'CASCADE'
+        },
+        text: {
+            type: DataTypes.STRING(2000),
+            allowNull: false,
+            validate: {
+                notNull: {
+                    msg: 'Text is required'
+                },
+                len: {
+                    args: [1, 2000],
+                    msg: 'Text must be between 1 and 2000 characters long'
+                }
+            }
+        }
+    });
+    return Message;
+};
 ```
 
 ### models/post.js
@@ -302,7 +376,6 @@ module.exports = (sequelize, DataTypes) => {
         creator: {
             type: DataTypes.STRING,
             allowNull: false,
-            len: [3, 32],
             validate: {
                 notNull: {
                     msg: 'Creator is required'
@@ -316,7 +389,6 @@ module.exports = (sequelize, DataTypes) => {
         title: {
             type: DataTypes.STRING,
             allowNull: false,
-            len: [3, 64],
             validate: {
                 notNull: {
                     msg: 'Title is required'
@@ -328,9 +400,8 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         content: {
-            type: DataTypes.STRING,
+            type: DataTypes.STRING(500),
             allowNull: true,
-            len: [0, 500],
             validate: {
                 len: {
                     args: [0, 500],
@@ -356,7 +427,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             unique: true,
             allowNull: false,
-            len: [3, 32],
             validate: {
                 notNull: {
                     msg: 'Username is required'
@@ -379,7 +449,6 @@ module.exports = (sequelize, DataTypes) => {
         name: {
             type: DataTypes.STRING,
             allowNull: true,
-            len: [3, 32],
             validate: {
                 len: {
                     args: [3, 32],
@@ -388,9 +457,8 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         description: {
-            type: DataTypes.STRING,
+            type: DataTypes.STRING(512),
             allowNull: true,
-            len: [0, 512],
             validate: {
                 len: {
                     args: [0, 512],
@@ -645,6 +713,329 @@ router.post('/refresh', async (req, res) => {
     res.status(200).json({"accessToken": accessToken});
 })
 
+
+module.exports = router;
+```
+
+### routes/chat.js
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const { Chat, ChatTable, User, Contact } = require('../models/index');
+const { Op } = require('sequelize');
+const authenticateJWT = require('../middleware/authenticateJWT');
+
+async function checkChatMembership(chatId, userId, adminRequired = false) {
+    const membership = await ChatTable.findOne({ where: { chatId, userId } });
+    if (!membership) {
+      throw new Error('You are not user of this chat');
+    }
+    if (adminRequired && !membership.dataValues.isAdmin) {
+      throw new Error('You are not admin of this chat');
+    }
+    
+    return membership;
+  }
+
+
+router.get('/list', authenticateJWT, async (req, res, next) => {
+    try {
+        const {startsWith} = req.query;
+        const whereClause = startsWith
+            ? { name: { [Op.startsWith]: startsWith } }
+            : {};
+
+        const user = await User.findByPk(req.user.id, {
+            attributes: [],
+            include: [
+                {
+                model: Chat,
+                where: whereClause,
+                attributes: ['id', 'name'],
+                through: { attributes: [] },
+                }
+            ]
+        });
+        res.status(200).json(user ? user.Chats : []);
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.patch('/admin/:chatId', authenticateJWT, async (req, res, next) => {
+    try {
+        const {chatId} = req.params;
+        if (!chatId) {
+            return res.status(400).json({"message": "Chat ID is required"});
+        }
+        const chat = await Chat.findByPk(chatId);
+        if (!chat) {
+            return res.status(400).json({"message": "Chat not found"});
+        };
+        const {username} = req.query;
+        if (!username) {
+            return res.status(400).json({"message": "Username is required"});
+        }
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        };
+        const userId = user.id;
+        if (req.user.id === userId) {
+            return res.status(400).json({"message": "You cannot set yourself as admin of this chat"});
+        };
+        if (!await ChatTable.findOne({ where: { chatId, userId } })) {
+            return res.status(400).json({"message": "User you want to set as admin is not in this chat"});
+        };
+        await checkChatMembership(chatId, req.user.id, true);
+        if (await ChatTable.findOne({ where: { chatId, userId, isAdmin: true } })) {
+            return res.status(400).json({"message": "User is already admin of this chat"});
+        }
+        await ChatTable.update({ isAdmin: true }, { where: { chatId, userId } });
+        res.status(200).json({"message": "User set as admin of this chat"});
+    } catch (error) {
+        switch (error.message) {
+            case "You are not user of this chat":
+                return res.status(400).json({"message": error.message});
+            case "You are not admin of this chat":
+                return res.status(400).json({"message": error.message});
+            default:
+                next(error);
+        }
+    }
+});
+
+router.post('/user/:chatId', authenticateJWT, async (req, res, next) => {
+    try {
+        const {chatId} = req.params;
+        if (!chatId) {
+            return res.status(400).json({"message": "Chat ID is required"});
+        }
+        const chat = await Chat.findByPk(chatId);
+        if (!chat) {
+            return res.status(400).json({"message": "Chat not found"});
+        };
+        const {username} = req.query;
+        if (!username) {
+            return res.status(400).json({"message": "Username is required"});
+        }
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        };
+        const userId = user.id;
+        await checkChatMembership(chatId, req.user.id, true);
+        if (req.user.id === userId) {
+            return res.status(400).json({"message": "You cannot add yourself to the chat"});
+        }
+        if (await ChatTable.findOne({ where: { chatId, userId } })) {
+            return res.status(400).json({"message": "User is already in this chat"});
+        }
+        if (!await Contact.findOne({
+            where: { [Op.or]: [{ senderId: req.user.id, receiverId: userId }, { senderId: userId, receiverId: req.user.id }] }
+        })) {
+            return res.status(400).json({"message": "You are not friends with this user"});
+        };
+        const chatTable = await ChatTable.create({ chatId, userId });
+        res.status(201).json({"message": "User was added to the chat"});
+    } catch (error) {
+        switch (error.message) {
+            case "You are not user of this chat":
+                return res.status(400).json({"message": error.message});
+            case "You are not admin of this chat":
+                return res.status(400).json({"message": error.message});
+            default:
+                next(error);
+        }
+    }
+});
+
+router.get('/user/:chatId', authenticateJWT, async (req, res, next) => {
+    try {
+        const {chatId} = req.params;
+        if (!chatId) {
+            return res.status(400).json({"message": "Chat ID is required"});
+        }
+        const membership = await checkChatMembership(chatId, req.user.id);
+        const chat = await Chat.findOne({
+            where: { id: chatId },
+            attributes: [],
+            include: [{
+                model: User,
+                attributes: ['id', 'username', 'name'],
+                through: { attributes: ['isAdmin'] } // Get 'isAdmin' from ChatTable
+            }]
+        });
+        if (!chat) {
+            return res.status(400).json({"message": "Chat not found"});
+        };
+        return res.status(200).json(chat.Users.map(user => ({id: user.id, username: user.username, name: user.name, isAdmin: user.ChatTable.isAdmin})));
+    } catch (error) {
+        switch (error.message) {
+            case "You are not user of this chat":
+                return res.status(400).json({"message": error.message});
+            case "You are not admin of this chat":
+                return res.status(400).json({"message": error.message});
+            default:
+                next(error);
+        }
+    }
+});
+
+router.delete('/user/:chatId', authenticateJWT, async (req, res, next) => {
+    try {
+        const {chatId} = req.params;
+        if (!chatId) {
+            return res.status(400).json({"message": "Chat ID is required"});
+        }
+        const chat = await Chat.findByPk(chatId);
+        if (!chat) {
+            return res.status(400).json({"message": "Chat not found"});
+        };
+        const {username} = req.query;
+        if (!username) {
+            return res.status(400).json({"message": "Username is required"});
+        }
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+            return res.status(400).json({"message": "User not found"});
+        };
+        const userId = user.id;
+        if (userId != req.user.id) {
+            await checkChatMembership(chatId, req.user.id, true);
+        };
+        await checkChatMembership(chatId, userId);
+        
+        if (!await ChatTable.findOne({ where: { chatId, userId } })) {
+            return res.status(400).json({"message": "User not found in this chat"});
+        };
+        if ((await ChatTable.findOne({ where: { chatId, userId } })).dataValues.isAdmin && req.user.id != userId) {
+            return res.status(400).json({"message": "You can't remove an admin from the chat"});
+        };
+        if ((await ChatTable.findOne({ where: { chatId, userId } })).dataValues.isAdmin 
+            && req.user.id == userId 
+            && (await ChatTable.findAll({where: {
+                chatId,
+                isAdmin: true
+            }})).length == 1) {
+            return res.status(400).json({"message": "You can't leave if you are the only admin"});
+        }
+        await ChatTable.destroy({ where: { chatId, userId } });
+        res.status(200).json({"message": "User was removed from the chat"});
+    } catch (error) {
+        switch (error.message) {
+            case "You are not user of this chat":
+                return res.status(400).json({"message": error.message});
+            case "You are not admin of this chat":
+                return res.status(400).json({"message": error.message});
+            default:
+                next(error);
+        }
+    }
+});
+
+router.post('/', authenticateJWT, async (req, res, next) => {
+    try {
+        const {name} = req.body;
+        if (!name) {
+            return res.status(400).json({"message": "Name is required"});
+        }
+        if (name.length < 3 || name.length > 32) {
+            return res.status(400).json({"message": "Name length must be between 3 and 32 characters"});
+        }
+        const chat = await Chat.create({name});
+        await ChatTable.create({chatId: chat.id, userId: req.user.id, isAdmin: true});
+        res.status(201).json({"message": "Chat created successfully"});
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.get('/:chatId', authenticateJWT, async (req, res, next) => {
+    try {
+        const {chatId} = req.params;
+        if (!chatId) {
+            return res.status(400).json({"message": "Chat ID is required"});
+        };
+        const chat = await Chat.findByPk(chatId, {
+            attributes: ['name']
+        });
+        if (!chat) {
+            return res.status(404).json({"message": "Chat not found"});
+        };
+        await checkChatMembership(chatId, req.user.id);
+        res.status(200).json(chat);
+    } catch (error) {
+        switch (error.message) {
+            case "You are not user of this chat":
+                return res.status(400).json({"message": error.message});
+            case "You are not admin of this chat":
+                return res.status(400).json({"message": error.message});
+            default:
+                next(error);
+        }
+    }
+});
+
+router.patch('/:chatId', authenticateJWT, async (req, res, next) => {
+    try {
+        const {chatId} = req.params;
+        if (!chatId) {
+            return res.status(400).json({"message": "Chat ID is required"});
+        }
+        const chat = await Chat.findByPk(chatId);
+        if (!chat) {
+            return res.status(404).json({"message": "Chat not found"});
+        };
+        await checkChatMembership(chatId, req.user.id, true);
+        const {name} = req.body;
+        if (!name) {
+            return res.status(400).json({"message": "Name is required"});
+        }
+        if (name.length < 3 || name.length > 32) {
+            return res.status(400).json({"message": "Name length must be between 3 and 32 characters"});
+        }
+        chat.name = name;
+        await chat.save();
+        res.status(200).json({"message": "Chat updated successfully"});
+    } catch (error) {
+        switch (error.message) {
+            case "You are not user of this chat":
+                return res.status(400).json({"message": error.message});
+            case "You are not admin of this chat":
+                return res.status(400).json({"message": error.message});
+            default:
+                next(error);
+        }
+    }
+}); 
+
+
+router.delete('/:chatId', authenticateJWT, async (req, res, next) => {
+    try {
+        const {chatId} = req.params;
+        if (!chatId) {
+            return res.status(400).json({"message": "Chat ID is required"});
+        }
+        const chat = await Chat.findByPk(chatId);
+        if (!chat) {
+            return res.status(404).json({"message": "Chat not found"});
+        };
+        await checkChatMembership(chatId, req.user.id, true);
+        await chat.destroy();
+        res.status(200).json({"message": "Chat deleted successfully"});
+    } catch (error) {
+        switch (error.message) {
+            case "You are not user of this chat":
+                return res.status(400).json({"message": error.message});
+            case "You are not admin of this chat":
+                return res.status(400).json({"message": error.message});
+            default:
+                next(error);
+        }
+    }
+});
 
 module.exports = router;
 ```
@@ -1015,7 +1406,7 @@ router.post(
             try {
                 if (user.avatarImage) {
                     const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
-                    fs.unlinkSync(photoPath);
+                    await fs.promises.unlink(photoPath);
                 }
             } catch (error) {
                 console.error("Error deleting photo:", error);
@@ -1037,7 +1428,7 @@ router.get('/account/photo/:username', async (req, res) => {
     }
 
     if (!user.avatarImage) {
-        return res.status(404).json({ message: 'Photo not found' });
+        return res.status(400).json({ message: 'Photo not found' });
     }
     const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
     res.sendFile(photoPath);
@@ -1075,7 +1466,7 @@ router.post('/post/:postId/image',
             try {
                 if (post.image) {
                     const imagePath = path.join(__dirname, '..', 'uploads', post.image);
-                    fs.unlinkSync(imagePath);
+                    await fs.promises.unlink(imagePath);
                 }
             } catch (error) {
                 console.error("Error deleting image:", error);
@@ -1098,7 +1489,7 @@ router.get('/post/:postId/image', async (req, res) => {
             return res.status(400).json({ message: 'Post not found' });
         }
         if (!post.image) {
-            return res.status(404).json({ message: 'Image not found' });
+            return res.status(400).json({ message: 'Image not found' });
         }
         const imagePath = path.join(__dirname, '..', 'uploads', post.image);
         res.sendFile(imagePath);
@@ -1116,35 +1507,54 @@ module.exports = router;
 
 ```javascript
 const express = require('express');
+const http = require('http');
+const {Server} = require('socket.io');
 const cors = require('cors');
 const multer = require('multer');
 const { sequelize } = require('./models');
 
-
 const app = express();
-app.use(express.json());
+const server = http.createServer(app);
+const io = new Server(server);
+
+
 app.use(cors());
+app.use(express.json());
+
 
 app.use('/api/v1/auth/', require('./routes/auth'));
 app.use('/api/v1/account/', require('./routes/account'));
 app.use('/api/v1/post/', require('./routes/post'));
 app.use('/api/v1/contact/', require('./routes/contact'));
+app.use('/api/v1/chat/', require('./routes/chat'));
 app.use('/api/v1/', require('./routes/uploads'));
 
 
+io.use(require('./websocket/JWTMiddleware'));
+
+
+require('./websocket/hello')(io);
+
+
 app.use((err, req, res, next) => {
+    console.log(err);
     if (err instanceof multer.MulterError) {
         return res.status(400).json({ message: err.message });
     }
-
-    console.error(err.stack);
-    res.status(500).json({ message: 'Something went wrong!' });
+    
+    if (err.name === 'SequelizeValidationError') {
+        return res.status(400).json({ message: err.errors[0].message });
+    }
+    
+    res.status(500).json({ 
+        message: err.message 
+    });
 });
 
 
 const PORT = 3000;
 sequelize.sync({force: false}).then(() => {
-    app.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
         console.log(`Server is running on port http://localhost:${PORT}`);
     });
 });
@@ -1165,4 +1575,100 @@ async function setAdminRole() {
 }
 
 setAdminRole();
+```
+
+### websocket/JWTMiddleware.js
+
+```javascript
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+dotenv.config();
+
+module.exports = (socket, next) => {
+    try {
+        const token = socket.handshake.headers.authorization.split(' ')[1];
+        if (!token) {
+            return next(new Error('Authentication error'));
+        }
+        const decoded = jwt.verify(token, process.env.JWT_ACCESS);
+        socket.user = decoded;
+        next();
+    } catch (error) {
+        console.log(error);
+        next(new Error('Authentication error'));
+    }
+}
+```
+
+### websocket/hello.js
+
+```javascript
+const { User, Message, Chat } = require('../models/index');
+
+async function getChatIds(userId) {
+  let chats = await User.findByPk(userId, {
+      attributes: [],
+      include: [
+          {
+              model: Chat,
+              attributes: ['id'],
+              through: { attributes: [] }
+          }
+      ],
+  });
+
+  if (!chats) {
+    throw new Error('User not found or has no chats');
+  }
+
+  chats = chats.Chats.map((chat) => chat.dataValues.id);
+  return chats;
+}
+
+module.exports = (io) => {
+    io.on('connection', async (socket) => {
+        console.log('New client connected:', socket.id);
+
+        try {
+            const chats = await getChatIds(socket.user.id);
+
+            chats.forEach(chatId => socket.join(chatId));
+        } catch (error) {
+            console.error("Error during chat fetching:", error);
+            return socket.emit('error', { message: 'Internal server error while fetching chats' });
+        }
+
+        socket.on('message', async (payload) => {
+            try {
+                const chats = await getChatIds(socket.user.id);
+
+                if (!payload.chatId || !payload.message) {
+                    return socket.emit('error', { message: 'chatId or message are missing' });
+                }
+                if (!chats.includes(payload.chatId)) {
+                    return socket.emit('error', { message: 'You are not a user of this chat' });
+                }
+                console.log(payload.chatId);
+                console.log(payload.message);
+                console.log(socket.user.id);
+                await Message.create({
+                    chatId: payload.chatId,
+                    userId: socket.user.id,
+                    text: payload.message
+                });
+
+                socket.to(payload.chatId).emit('chatMessage', payload.message);
+
+            } catch (error) {
+                console.error("Error handling message:", error);
+                socket.emit('error', { message: 'Internal server error while sending message' });
+            }
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Client disconnected:', socket.id);
+        });
+    });
+};
+
 ```

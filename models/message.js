@@ -3,19 +3,11 @@ module.exports = (sequelize, DataTypes) => {
         chatId: {
             type: DataTypes.INTEGER,
             allowNull: false,
-            references: {
-                model: 'Chat',
-                key: 'id'
-            },
             onDelete: 'CASCADE'
         },
         userId: {
             type: DataTypes.INTEGER,
             allowNull: false,
-            references: {
-                model: 'User',
-                key: 'id'
-            },
             onDelete: 'CASCADE'
         },
         text: {
