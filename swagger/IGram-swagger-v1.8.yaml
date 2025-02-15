@@ -6,13 +6,11 @@ info:
     **Changelog**
 
     *Added:*
-    - chat - /chat
-    - users in chat - /chat/user
-    - list of chats you are in - /chat/list
+    - List of messages in chat - /chat/message
 
     **In each response you will get json like this: {"message": "User not found"}**
 
-  version: 0.0.7
+  version: 0.0.8
 
 servers:
   - url: http://localhost:3000/api/v1
@@ -535,7 +533,7 @@ paths:
           name: limit
           schema:
             type: integer
-            default: 10
+            default: 50
           description: The numbers of posts to return
         - in: query
           name: username
@@ -1059,6 +1057,42 @@ paths:
           description: Forbidden
         '500':
           description: Server Error
+  /chat/message/{chatId}:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Get list of messages in chat
+      description: To get list you need to be in this chat
+      parameters:
+        - in: path
+          required: true
+          name: chatId
+          schema:
+            type: integer
+        - in: query
+          name: offSet
+          schema:
+            type: integer
+            default: 0
+          description: The number of messages to skip before starting to collect the result set
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: The numbers of messages to return
+      responses:
+        '200':
+          description: List of messages in chat
+        '400':
+          description: Bad request (incorrectly filled in fields)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Server Error
+
 
       
 components:

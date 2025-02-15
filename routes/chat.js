@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Chat, ChatTable, User, Contact } = require('../models/index');
+const { Chat, ChatTable, User, Contact, Message } = require('../models/index');
 const { Op } = require('sequelize');
 const authenticateJWT = require('../middleware/authenticateJWT');
 
@@ -36,6 +36,33 @@ router.get('/list', authenticateJWT, async (req, res, next) => {
             ]
         });
         res.status(200).json(user ? user.Chats : []);
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.get('/message/:chatId', authenticateJWT, async (req, res, next) => {
+    try {
+        const {chatId} = req.params;
+        if (!chatId) {
+            return res.status(400).json({"message": "Chat ID is required"});
+        }
+        const chat = await Chat.findByPk(chatId);
+        if (!chat) {
+            return res.status(400).json({"message": "Chat not found"});
+        };
+        if (!(await ChatTable.findOne({ where: { chatId, userId: req.user.id } }))) {
+            return res.status(400).json({"message": "You are not user of this chat"});
+        }
+        const {offSet, limit} = req.query;
+        const messages = await Message.findAll({
+            where: {chatId}, 
+            order: [['createdAt', 'DESC']], 
+            attributes: ['id', 'text', 'userId', 'createdAt'],
+            offset: !offSet ? 0 : parseInt(offSet),
+            limit: !limit ? 50 : parseInt(limit)
+        });
+        res.status(200).json(messages);
     } catch (error) {
         next(error);
     }
