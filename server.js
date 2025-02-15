@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const http = require('http');
 const {Server} = require('socket.io');
 const cors = require('cors');
@@ -10,8 +11,16 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 
+const limiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 1,
+    message: {message: 'Too many requests, please try again later'},
+    headers: true
+});
+
 app.use(cors());
 app.use(express.json());
+app.use(limiter);
 
 
 app.use('/api/v1/auth/', require('./routes/auth'));
@@ -25,7 +34,7 @@ app.use('/api/v1/', require('./routes/uploads'));
 io.use(require('./websocket/JWTMiddleware'));
 
 
-require('./websocket/hello')(io);
+require('./websocket/websocetMessages')(io);
 
 
 app.use((err, req, res, next) => {

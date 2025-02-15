@@ -6,11 +6,15 @@ info:
     **Changelog**
 
     *Added:*
-    - List of messages in chat - /chat/message
+    - Ratelimit 100 requests per 5 minutes
 
     **In each response you will get json like this: {"message": "User not found"}**
 
-  version: 0.0.8
+    **You alos may get error 429 with json like this: {"message": "message": "Too many requests, please try again later"}**
+
+    *You cand do only 100 requests evry 5 minutes*
+
+  version: 0.0.9
 
 servers:
   - url: http://localhost:3000/api/v1
