@@ -59,6 +59,53 @@ module.exports = (io) => {
             }
         });
 
+        socket.on('editMessage', async (payload) => {
+            try {
+                console.log(payload);
+                const {message, chatId, messageId} = payload;
+                if (!message || !chatId || !messageId) {
+                    return socket.emit('error', { message: 'message, chatId, or messageId are missing' });
+                }
+                const chats = await getChatIds(socket.user.id);
+                if (!chats.includes(chatId)) {
+                    return socket.emit('error', { message: 'You are not a user of this chat' });
+                }
+                const messageToEdit = await Message.findOne({where: {id: messageId, chatId, userId: socket.user.id}});
+                if (!messageToEdit) {
+                    return socket.emit('error', { message: 'Message not found' });
+                }
+                messageToEdit.text = message;
+                await messageToEdit.save();
+                const username = await User.findByPk(socket.user.id, { attributes: ['username'] });
+                socket.to(chatId).emit('chatMessageEdited', {username: username.username, message: message, messageId: messageId, chatId: chatId});
+            } catch (error) {
+                console.error("Error editing message:", error);
+                socket.emit('error', { message: 'Internal server error while editing message' });
+            }
+        });
+
+        socket.on('deleteMessage', async (payload) => {
+            try {
+                const {chatId, messageId} = payload;
+                if (!chatId || !messageId) {
+                    return socket.emit('error', { message: 'chatId or messageId are missing' });
+                }
+                const chats = await getChatIds(socket.user.id);
+                if (!chats.includes(chatId)) {
+                    return socket.emit('error', { message: 'You are not a user of this chat' });
+                }
+                const messageToDelete = await Message.findOne({where: {id: messageId, chatId, userId: socket.user.id}});
+                if (!messageToDelete) {
+                    return socket.emit('error', { message: 'Message not found' });
+                }
+                await messageToDelete.destroy();
+                socket.to(chatId).emit('chatMessageDeleted', {messageId: messageId, chatId: chatId});
+            } catch (error) {
+                console.error("Error deleting message:", error);
+                socket.emit('error', { message: 'Internal server error while deleting message' });
+            }
+        });
+
         socket.on('disconnect', () => {
             console.log('Client disconnected:', socket.id);
         });
