@@ -13,7 +13,7 @@ const io = new Server(server);
 
 const limiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 1,
+    max: 100,
     message: {message: 'Too many requests, please try again later'},
     headers: true
 });
