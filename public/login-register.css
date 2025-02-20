@@ -1,0 +1,76 @@
+/* :root {
+  --black-333: #333;
+  --black-111: #111;
+  --black-000: #000;
+  --black-222: #222;
+  --black-555: #555;
+  --white-fff: #fff;
+  --white-ddd: #ddd;
+} */
+
+*, *::after, *::before {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #000;
+  display: grid;
+  justify-content: center;
+  align-content: center;
+  color: #ddd;
+  min-height: 100vh;
+}
+
+#register-form {
+  display: grid;
+  grid-template-rows: 1fr;
+  gap: .7rem;
+  background-color: #111;
+  padding: 1.5rem;
+  border: .05rem solid #555;
+  border-radius: .7rem;
+  color: #ddd;
+}
+
+#register-form input {
+  color: #ddd;
+  min-width: 20rem;
+  font-size: 1.2rem;
+  background-color: #222;
+  border: .05rem solid #555;
+  border-radius: .2rem;
+  padding: .5rem;
+}
+
+#register-form input:focus {
+  color: #ddd;
+  outline: none;
+  border: .05rem solid #777;
+}
+
+#register-form p {
+  display: none;
+  font-size: .9rem;
+  color: red;
+  text-align: center;
+}
+
+#register-form a {
+  font-size: .9rem;
+  color: #ddd;
+  text-align: center;
+}
+
+#register-form button {
+  padding: .5rem;
+  border: none;
+  background-color: #ddd;
+  border-radius: .2rem;
+}
+
+#register-form button:hover {
+  cursor: pointer;
+  background-color: #fff;
+}

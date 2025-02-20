@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="login-register.css">
+</head>
+<body>
+    <form id="register-form">
+        <label for="nickname">Your nickname: </label>
+        <input type="text" id="nickname" name="nickname" required>
+        <label for="password1">Your password</label>
+        <input type="password" id="password1" name="password1" required>
+        <p id="register-error"></p>
+        <a href="register.html">Don't have an account?</a>
+        <button type="submit" onclick="login(event)">Login</button>
+    </form>
+</body>
+<script src="login.js"></script>
+</html>

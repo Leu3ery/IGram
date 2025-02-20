@@ -4,7 +4,7 @@ const { Post, User } = require('../models/index');
 const authenticateJWT = require('../middleware/authenticateJWT');
 
 
-router.post('/', authenticateJWT, async (req, res) => {
+router.post('/', authenticateJWT, async (req, res, next) => {
     try {
         const {title, content} = req.body;
         const creatorAccount = await User.findOne({where: {id: req.user.id}});
@@ -20,14 +20,13 @@ router.post('/', authenticateJWT, async (req, res) => {
         const post = await Post.create({title, content, creator: creatorAccount.username, userId: creatorAccount.id});
         res.status(201).json({"message": "Post created successfully"});
     } catch (error) {
-        console.log(error);
-        res.status(500).json({"message": "Something went wrong"});
+        next(error);
     }
 });
 
-router.get('/list', async (req, res) => {
-    const {offSet, limit, username} = req.query;
+router.get('/list', async (req, res, next) => {
     try {
+        const {offSet, limit, username} = req.query;
         if (!username) {
             return res.status(400).json({"message": "Username is required"});
         }
@@ -44,13 +43,12 @@ router.get('/list', async (req, res) => {
         });
         res.status(200).json(posts);
     } catch (error) {
-        console.log(error);
-        res.status(500).json({"message": "Something went wrong"});
+        next(error);
     }
 });
 
 
-router.patch('/:postId', authenticateJWT, async (req, res) => {
+router.patch('/:postId', authenticateJWT, async (req, res, next) => {
     try {
         const post = await Post.findByPk(req.params.postId);
         if (!post) {
@@ -79,12 +77,11 @@ router.patch('/:postId', authenticateJWT, async (req, res) => {
         await post.save();
         res.status(200).json({"message": "Post updated successfully"});
     } catch (error) {
-        console.log(error);
-        res.status(500).json({"message": "Something went wrong"});
+        next(error);
     }
 });
 
-router.get('/:postId', async (req, res) => {
+router.get('/:postId', async (req, res, next) => {
     try {
         const post = await Post.findByPk(req.params.postId);
         if (!post) {
@@ -92,12 +89,11 @@ router.get('/:postId', async (req, res) => {
         }
         res.status(200).json({id: post.id, creator: post.creator, title: post.title, content: post.content});
     } catch (error) {
-        console.log(error);
-        res.status(500).json({"message": "Something went wrong"});
+        next(error);
     }
 });
 
-router.delete('/:postId', authenticateJWT, async (req, res) => {
+router.delete('/:postId', authenticateJWT, async (req, res, next) => {
     try {
         const post = await Post.findByPk(req.params.postId);
         if (!post) {
@@ -113,8 +109,7 @@ router.delete('/:postId', authenticateJWT, async (req, res) => {
         await post.destroy();
         res.status(200).json({"message": "Post deleted successfully"});
     } catch (error) {
-        console.log(error);
-        res.status(500).json({"message": "Something went wrong"});
+        next(error);
     }
 });
 

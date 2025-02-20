@@ -7,14 +7,14 @@ const { Op } = require('sequelize');
 dotenv.config();
 
 
-router.patch('/', authenticateJWT, async (req, res) => {
-    const { name, description } = req.body; 
-
-    if (!name && !description) {
-        return res.status(400).json({"message": "At least one field (name or description) must be provided."});
-    }
-
+router.patch('/', authenticateJWT, async (req, res, next) => {
     try {
+        const { name, description } = req.body; 
+
+        if (!name && !description) {
+            return res.status(400).json({"message": "At least one field (name or description) must be provided."});
+        }
+
         const user = await User.findOne({ where: { id: req.user.id } });
         if (!user) {
             return res.status(404).json({"message": "User not found"});
@@ -23,15 +23,11 @@ router.patch('/', authenticateJWT, async (req, res) => {
         await user.update({ name, description });
         res.status(200).json({"message": "User updated successfully"});
     } catch (error) {
-        if (error.name === 'SequelizeValidationError') {
-            return res.status(400).json({ message: error.errors[0].message });
-        }
-        console.error(error);
-        res.status(500).json({"message": "An error occurred while updating the user."});
+        next(error);
     }
 });
 
-router.get('/', authenticateJWT, async (req, res) => {
+router.get('/', authenticateJWT, async (req, res, next) => {
     try {
         const user = await User.findOne({ where: { id: req.user.id } });
         if (!user) {
@@ -39,12 +35,11 @@ router.get('/', authenticateJWT, async (req, res) => {
         }
         res.status(200).json({username: user.username, name: user.name, description: user.description});
     } catch (error) {
-        console.error(error);
-        res.status(500).json({"message": "An error occurred while fetching the user."});
+        next(error)
     }
 });
 
-router.delete('/', authenticateJWT, async (req, res) => {
+router.delete('/', authenticateJWT, async (req, res, next) => {
     try {
         const user = await User.findOne({ where: { id: req.user.id } });
         if (!user) {
@@ -53,17 +48,16 @@ router.delete('/', authenticateJWT, async (req, res) => {
         await user.destroy();
         res.status(200).json({"message": "User deleted successfully"});
     } catch (error) {
-        console.error(error);
-        res.status(500).json({"message": "An error occurred while deleting the user."});
+        next(error)
     }
 });
 
 
-router.get('/list', async (req, res) => {
-    const offSet = req.query.offSet || 0;
-    const limit = req.query.limit || 10;
-    const startsWith = req.query.startsWith || "";
+router.get('/list', async (req, res, next) => {
     try {
+        const offSet = req.query.offSet || 0;
+        const limit = req.query.limit || 10;
+        const startsWith = req.query.startsWith || "";
         const users = await User.findAll({
             attributes: ['username', 'name', 'description'],
             where: {
@@ -76,26 +70,24 @@ router.get('/list', async (req, res) => {
         });
         res.status(200).json(users);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({"message": "An error occurred while fetching the user list."});
+        next(error);
     }
 })
 
-router.get('/:username', async (req, res) => {
-    const username = req.params.username;
+router.get('/:username', async (req, res, next) => {
     try {
+        const username = req.params.username;
         const user = await User.findOne({ where: { username } });
         if (!user) {
             return res.status(400).json({"message": "User not found"});
         }
         res.status(200).json({username: user.username, name: user.name, description: user.description});
     } catch (error) {
-        console.error(error);
-        res.status(500).json({"message": "An error occurred while fetching the user."});
+        next(error);
     }
 });
 
-router.delete('/:username', authenticateJWT, async (req, res) => {
+router.delete('/:username', authenticateJWT, async (req, res, next) => {
     try {
         const adminUser = await User.findOne({ where: {id: req.user.id} });
         if (!adminUser || adminUser.role !== 'admin') {
@@ -108,8 +100,7 @@ router.delete('/:username', authenticateJWT, async (req, res) => {
         await user.destroy();
         res.status(200).json({"message": "User deleted successfully"});
     } catch (error) {
-        console.error(error);
-        res.status(500).json({"message": "An error occurred while deleting the user."});
+        next(error);
     }
 });
 

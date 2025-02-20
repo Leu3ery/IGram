@@ -61,7 +61,6 @@ module.exports = (io) => {
 
         socket.on('editMessage', async (payload) => {
             try {
-                console.log(payload);
                 const {message, chatId, messageId} = payload;
                 if (!message || !chatId || !messageId) {
                     return socket.emit('error', { message: 'message, chatId, or messageId are missing' });

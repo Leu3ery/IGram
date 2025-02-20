@@ -46,17 +46,21 @@ router.post(
     }
 );
 
-router.get('/account/photo/:username', async (req, res) => {
-    const user = await User.findOne({ where: { username: req.params.username } });
-    if (!user) {
-        return res.status(400).json({ message: 'User not found' });
-    }
+router.get('/account/photo/:username', async (req, res, next) => {
+    try {
+        const user = await User.findOne({ where: { username: req.params.username } });
+        if (!user) {
+            return res.status(400).json({ message: 'User not found' });
+        }
 
-    if (!user.avatarImage) {
-        return res.status(400).json({ message: 'Photo not found' });
+        if (!user.avatarImage) {
+            return res.status(400).json({ message: 'Photo not found' });
+        }
+        const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
+        res.sendFile(photoPath);
+    } catch (error) {
+        next(error);
     }
-    const photoPath = path.join(__dirname, '..', 'uploads', user.avatarImage);
-    res.sendFile(photoPath);
 });
 
 router.post('/post/:postId/image', 
@@ -69,7 +73,7 @@ router.post('/post/:postId/image',
             next();
         });
     }, 
-    async (req, res) => {
+    async (req, res, next) => {
         try {
             if (!req.file) {
                 return res.status(400).json({ message: 'No file uploaded' });
@@ -104,7 +108,7 @@ router.post('/post/:postId/image',
         }
 });
 
-router.get('/post/:postId/image', async (req, res) => {
+router.get('/post/:postId/image', async (req, res, next) => {
     try {
         if (!req.params.postId) {
             return res.status(400).json({ message: 'Post id param is required' });
