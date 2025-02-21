@@ -23,6 +23,7 @@ app.use(express.json());
 // app.use(limiter);
 
 app.use('/', express.static('public'));
+app.use('/uploads', express.static('uploads'));
 app.use('/api/v1/auth/', require('./routes/auth'));
 app.use('/api/v1/account/', require('./routes/account'));
 app.use('/api/v1/post/', require('./routes/post'));

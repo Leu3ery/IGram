@@ -6,7 +6,7 @@ info:
     **Changelog**
 
     *Added:*
-    - Ratelimit 100 requests per 5 minutes
+    - post/list - username is no more required
 
     **In each response you will get json like this: {"message": "User not found"}**
 
@@ -541,7 +541,6 @@ paths:
           description: The numbers of posts to return
         - in: query
           name: username
-          required: true
           schema:
             type: string
       responses:

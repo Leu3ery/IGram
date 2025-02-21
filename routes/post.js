@@ -27,16 +27,15 @@ router.post('/', authenticateJWT, async (req, res, next) => {
 router.get('/list', async (req, res, next) => {
     try {
         const {offSet, limit, username} = req.query;
-        if (!username) {
-            return res.status(400).json({"message": "Username is required"});
-        }
-        const user = await User.findOne({where: {username}});
-        if (!user) {
-            return res.status(400).json({"message": "User not found"});
+        if (username) {
+            const user = await User.findOne({where: {username}});
+            if (!user) {
+                return res.status(400).json({"message": "User not found"});
+            }
         }
         const posts = await Post.findAll({
             attributes: ['id', 'creator', 'title', 'content', 'createdAt'],
-            where: { creator: username },
+            where: username ? { creator: username } : {},
             offset: !offSet ? 0 : parseInt(offSet),
             limit: !limit ? 10 : parseInt(limit),
             order: [['createdAt', 'DESC']] // Order by createdAt in descending order

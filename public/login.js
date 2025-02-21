@@ -22,7 +22,7 @@ async function login(event) {
             registerError.style.display = 'block';
             window.localStorage.setItem('accessToken', data.accessToken);
             window.localStorage.setItem('refreshToken', data.refreshToken);
-            window.location.replace('main.html');
+            window.location.replace('account.html');
         } else {
             registerError.innerText = data.message || "Error";
             registerError.style.color = 'red';
