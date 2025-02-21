@@ -32,11 +32,12 @@ body {
   border: .05rem solid #555;
   border-radius: .7rem;
   color: #ddd;
+  width: 22rem;
 }
 
 #register-form input {
   color: #ddd;
-  min-width: 20rem;
+  width: 100%;
   font-size: 1.2rem;
   background-color: #222;
   border: .05rem solid #555;
@@ -66,11 +67,17 @@ body {
 #register-form button {
   padding: .5rem;
   border: none;
-  background-color: #ddd;
+  background-color: #c6c6c6;
   border-radius: .2rem;
 }
 
 #register-form button:hover {
   cursor: pointer;
-  background-color: #fff;
+  background-color: #888;
+}
+
+@media (max-width: 450px) {
+  #register-form {
+    width: 90vw;
+  }
 }
