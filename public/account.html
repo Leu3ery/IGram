@@ -11,22 +11,33 @@
 <body>
     <content>
         <div id="account-info">
-            <img src="../avatar.png" alt="avatar">
+            <img src="../avatar.png" alt="avatar" id="account-avatar">
             <div id="account-data">
-                <h3 id="account-nickname">username</h3>
-                <h4 id="account-name">name</h4>
-                <p id="account-description">Lorem ipsum dolor sit amet consectetur adipisicing elit. Quibusdam, deserunt dicta modi debitis, ducimus animi sed iure nostrum dolores omnis qui veniam voluptatem est, delectus corporis facere sequi inventore reiciendis.</p>
+                <h3 id="account-nickname">No user found</h3>
+                <h4 id="account-name">No name found</h4>
+                <p id="account-description">No description found</p>
             </div>
-            <button id="account-settings">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
+            <button id="account-settings" class="popup">
+                <i class="fa-solid fa-ellipsis-vertical popup"></i>
             </button>
         </div>
         <div id="account-post">
-
         </div>
     </content>
     <footer>
     </footer>
+    <div class="popup" id="account-settings-popup" style="display: none;">
+        <img class="popup" src="../avatar.png" alt="avatar" id="settings-avatar">
+        <form class="popup" id="settings-form">
+            <input type="file" class="popup" accept=".png, .jpg, .jpeg" id="settings-avatar-file">
+            <label class="popup" for="settings-name">Name: </label>
+            <input class="popup" type="text" id="settings-name">
+            <label class="popup" for="settings-descripion">Description: </label>
+            <input class="popup" type="text" id="settings-description">
+            <p class="popup" id="settings-error"></p>
+            <button class="popup" id="settings-button">Confirm</button>
+        </form>
+    </div>
 </body>
 <script src="script.js"></script>
 </html>

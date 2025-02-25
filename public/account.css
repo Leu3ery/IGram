@@ -1,4 +1,5 @@
 content {
+    position: relative;
     display: flex;
     flex-direction: column;
     background-color: #111;
@@ -13,21 +14,24 @@ content {
 
 #account-info {
     position: relative;
-    width: max(70%);
-    height: 25vh;
-    /* background-color: #444; */
+    width: 70%;
+    min-height: 10rem;
     display: flex;
     padding: 1rem;
     justify-content: space-around;
     align-items: center;
     gap: 5rem;
+    border: .05rem solid #555;
+    border-top: none;
 }
 
-#account-info img {
-    height: 80%;
+#account-avatar {
+    height: 9rem;
+    width: 9rem;
     border: .1rem solid #555;
     border-radius: 50%;
     background-color: #222;
+    background-size: auto;
 }
 
 #account-data {
@@ -40,6 +44,19 @@ content {
     display: flex;
     gap: 1rem;
 }
+
+#account-description {
+    word-break: break-all;
+}
+
+#account-name {
+    word-break: break-all;
+} 
+
+#account-nickname {
+    word-break: break-all;
+}
+
 
 #account-settings {
     position: absolute;
@@ -68,12 +85,86 @@ content {
 
 /* POST */
 #account-post {
-    width: max(70%);
+    width: 70%;
     height: 100%;
-    background-color: #888;
+    border: .05rem solid #555;
+    border-bottom: none;
+}
+
+/* POP UP */
+
+#account-settings-popup {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    width: fit-content;
+    height: fit-content;
+    padding: 1rem;
+    background-color: #111;
+    border-radius: .5rem;
+    border: .05rem solid #555;
+    text-align: center;
+}
+
+#settings-avatar {
+    height: 9rem;
+    width: 9rem;
+    border: .1rem solid #555;
+    border-radius: 50%;
+    background-color: #222;
+    background-size: auto;
+    margin-bottom: 1.5rem;
+}
+
+#settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 18rem;
+    justify-content: flex-start;
+    align-items: flex-start;
+    color: #ddd;
+}
+
+#settings-form input {
+    color: #ddd;
+    width: 100%;
+    background-color: #222;
+    border: .05rem solid #555;
+    border-radius: .2rem;
+    padding: .5rem;
+}
+
+#settings-form input:focus {
+    color: #ddd;
+    outline: none;
+    border: .05rem solid #777;
+}
+
+#settings-form p {
+    display: none;
+    font-size: .9rem;
+    color: red;
+    text-align: center;
 }
 
 
+#settings-form button {
+    width: 100%;
+    padding: .5rem;
+    border: none;
+    background-color: #c6c6c6;
+    border-radius: .2rem;
+}
+
+#settings-form button:hover {
+    cursor: pointer;
+    background-color: #888;
+}
 
 @media (max-width: 768px) {
     p {
@@ -86,11 +177,14 @@ content {
 
     #account-post {
         width: 100vw;
+        border:none;
     }
 
     #account-info {
         gap: 1rem;
         width: 100vw;
+        border: none;
+        border-bottom: .05rem solid #555;
     }
 
     #account-settings {
