@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const authenticateJWT = require('../middleware/authenticateJWT');
-const { User } = require('../models');
+const { User, ChatTable, Chat } = require('../models');
 const dotenv = require('dotenv');
-const { Op } = require('sequelize'); 
+const { Op, where } = require('sequelize'); 
 dotenv.config();
 
 
@@ -53,22 +53,94 @@ router.delete('/', authenticateJWT, async (req, res, next) => {
 });
 
 
-router.get('/list', async (req, res, next) => {
+router.get('/list', authenticateJWT, async (req, res, next) => {
     try {
         const offSet = req.query.offSet || 0;
         const limit = req.query.limit || 10;
         const startsWith = req.query.startsWith || "";
-        const users = await User.findAll({
-            attributes: ['username', 'name', 'description'],
-            where: {
-                username: {
-                    [Op.startsWith]: startsWith
+
+        let itemTypes = req.query.itemTypes;
+        if (!itemTypes) {
+            itemTypes = []
+        } else if (!Array.isArray(itemTypes)) {
+            itemTypes = [itemTypes]
+        }
+        
+        if (itemTypes.length == 0) {
+            let relations = await User.findAll({
+                attributes: ['id'],
+                where: {
+                    [Op.not]:[{id: req.user.id}]
+                },
+                include: {
+                    model: User,
+                    attributes: [],
+                    as: 'contacts',
+                    required: true,
+                    through: {
+                        where: {
+                            [Op.or]:[{senderId: req.user.id}, {receiverId: req.user.id}]
+                        }
+                    }
                 }
-            },
-            offset: parseInt(offSet),
-            limit: parseInt(limit)
-        });
-        res.status(200).json(users);
+            });
+            for (let i = 0; i < relations.length; i++) {
+                relations[i] = relations[i].dataValues.id
+            }
+            const users = await User.findAll({
+                attributes: ['id', 'username', 'avatarImage', 'name'],
+                offset: parseInt(offSet),
+                limit: parseInt(limit),
+                where: {
+                    id: {[Op.notIn]:relations},
+                    [Op.not]:[{id: req.user.id}]
+                }
+            })
+            res.status(200).json(users);
+
+        } else {
+            let orCondition = [];
+            if (itemTypes.includes('sent')) {
+                orCondition.push({senderId: req.user.id, isAccepted: false});
+            }
+            if (itemTypes.includes('received')) {
+                orCondition.push({receiverId: req.user.id, isAccepted: false});
+            }
+            if (itemTypes.includes('accepted')) {
+                orCondition.push({senderId: req.user.id, isAccepted: true});
+                orCondition.push({receiverId: req.user.id, isAccepted: true});
+            }
+
+            const users = await User.findAll({
+                attributes: ['id', 'username', 'avatarImage', 'name'],
+                where: {
+                    username: {
+                        [Op.startsWith]: startsWith
+                    },
+                    id: {
+                        [Op.not]: req.user.id
+                    }
+                },
+                offset: parseInt(offSet),
+                limit: parseInt(limit),
+                subQuery: false,
+                include: [
+                    {
+                        model: User,
+                        required: true,
+                        as: 'contacts',
+                        attributes: ['id', 'username', 'avatarImage', 'name'],
+                        through: {
+                            where: {
+                                [Op.or]: orCondition
+                            }
+                        }
+                    }
+                ]
+            });
+            res.status(200).json(users);
+        }
+        
     } catch (error) {
         next(error);
     }

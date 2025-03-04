@@ -1,4 +1,4 @@
-const url = 'http://192.168.0.115:3000/api/v1'
+const url = 'http://localhost:3000/api/v1'
 
 async function register(event) {
     event.preventDefault();

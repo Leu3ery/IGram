@@ -63,8 +63,8 @@ router.get('/received', authenticateJWT, async (req, res, next) => {
         const lst = [];
         for (let i = 0; i < contacts.length; i++) {
             const contactId = contacts[i].dataValues.senderId === req.user.id ? contacts[i].dataValues.receiverId : contacts[i].dataValues.senderId;
-            const contactUsername = await User.findOne({where: {id: contactId}, attributes: ['username']});
-            lst.push({username: contactUsername.dataValues.username});
+            const contactUsername = await User.findOne({where: {id: contactId}, attributes: ['username', 'avatarImage', 'name']});
+            lst.push({username: contactUsername.dataValues.username, avatarImage: contactUsername.dataValues.avatarImage, name: contactUsername.dataValues.name});
         }
         res.status(200).json(lst);
     } catch (error) {
@@ -106,8 +106,8 @@ router.get('/sent', authenticateJWT, async (req, res, next) => {
         const lst = [];
         for (let i = 0; i < contacts.length; i++) {
             const contactId = contacts[i].dataValues.senderId === req.user.id ? contacts[i].dataValues.receiverId : contacts[i].dataValues.senderId;
-            const contactUsername = await User.findOne({where: {id: contactId}, attributes: ['username']});
-            lst.push({username: contactUsername.dataValues.username});
+            const contactUsername = await User.findOne({where: {id: contactId}, attributes: ['username', 'avatarImage', 'name']});
+            lst.push({username: contactUsername.dataValues.username, avatarImage: contactUsername.dataValues.avatarImage, name: contactUsername.dataValues.name});
         }
         res.status(200).json(lst);
     } catch (error) {
@@ -127,8 +127,8 @@ router.get('/', authenticateJWT, async (req, res, next) => {
         const lst = [];
         for (let i = 0; i < contacts.length; i++) {
             const contactId = contacts[i].dataValues.senderId === req.user.id ? contacts[i].dataValues.receiverId : contacts[i].dataValues.senderId;
-            const contactUsername = await User.findOne({where: {id: contactId}, attributes: ['username']});
-            lst.push({username: contactUsername.dataValues.username});
+            const contactUsername = await User.findOne({where: {id: contactId}, attributes: ['username', 'avatarImage', 'name']});
+            lst.push({username: contactUsername.dataValues.username, avatarImage: contactUsername.dataValues.avatarImage, name: contactUsername.dataValues.name});
         }
         res.status(200).json(lst);
     } catch (error) {

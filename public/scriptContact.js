@@ -1,12 +1,17 @@
 window.addEventListener('load', async () => {
     const url = 'http://localhost:3000/api/v1';
-    // if (!navigator.onLine) {
-    //     alert("No internet connection! Please check your network.");
-    //     return;
-    // }
 
-    await refreshToken();
-    renderFooter();
+    const contactPopUp = document.getElementById('popup-contact-box');
+    const contactButton = document.getElementById('contact-popup-button');
+    contactButton.addEventListener('click', () => {
+        contactPopUp.style.display = contactPopUp.style.display == 'none' ? 'flex' : 'none';
+    });
+
+    window.addEventListener('click', (event) => {
+        if (!event.target.className.match('popup-contact')) {
+            contactPopUp.style.display = 'none';
+        }
+    });
 
     async function refreshToken() {
         try {
@@ -31,18 +36,6 @@ window.addEventListener('load', async () => {
         } catch (error) {
             alert(error);
         }
-    }
-    
-    function renderFooter() {
-        const footer = document.querySelector('footer');
-        footer.innerHTML = `
-            <nav>
-                <a href="contact.html"><i class="fa-regular fa-circle-user"></i></a>
-                <a href="chat.html"><i class="fa-regular fa-comments"></i></a>
-                <a href="post.html"><i class="fa-regular fa-newspaper"></i></a>
-                <a href="account.html"><i class="fa-regular fa-address-card"></i></a>
-            </nav>
-        `
     }
 });
 

@@ -1,0 +1,197 @@
+#top-part {
+    position: relative;
+}
+
+/* POPUP BUTTON */
+
+#contact-popup-button {
+    position: absolute;
+    right: 1rem;
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: .5rem;
+    border-radius: 50%;
+    border: none;
+    background-color: transparent;
+    border: .05rem solid #555;
+}
+
+#contact-popup-button:hover {
+    background-color: #555;
+}
+
+#contact-popup-button i {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: .9rem;
+    width: 1.3rem;
+    height: 1.3rem;
+    color: white;
+}
+
+/* POPUP */
+
+#popup-contact-box {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 25rem;
+    height: 30rem;
+    position: absolute;
+    margin: auto;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    border: .05rem solid #555;
+    border-radius: .5rem;
+    padding: 1rem;
+    box-shadow: 0 0 .5rem .01rem rgb(68, 68, 68);
+    text-align: center;
+}
+
+#popup-contact-box form{
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+#popup-contact-box form input {
+    color: #ddd;
+    width: 100%;
+    background-color: #222;
+    border: .05rem solid #555;
+    border-radius: .2rem;
+    padding: .5rem;
+}
+
+
+#popup-contact-box form input:focus {
+    color: #ddd;
+    outline: none;
+    border: .05rem solid #777;
+}
+
+
+#popup-contact-box form button {
+    padding: .5rem;
+    border: none;
+    background-color: #c6c6c6;
+    border-radius: .2rem;
+    border-radius: 50%;
+}
+
+#popup-contact-box form button i {
+    width: 1.3rem;
+    height: 1.3rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+  
+#popup-contact-box form button:hover {
+    cursor: pointer;
+    background-color: #888;
+}
+
+/* POPUP LIST */
+
+#contact-list-popup {
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+    width: 100%;
+    max-height: 100%;
+    overflow: scroll;
+    font-style: normal;
+    color: #ddd;
+}
+
+.contact-block-add {
+    display: flex;
+    width: 100%;
+    padding: .5rem;
+    border-bottom: .05rem solid #555;
+    gap: 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.contact-block-add img {
+    width: 3rem;
+    height: 3rem;
+    border: .05rem solid #555;
+    border-radius: 50%;
+}
+
+.contact-block-img-name {
+    display: flex;
+    gap: 2rem;
+}
+
+.contact-block-name {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-around;
+}
+
+.contacts-blick-two-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Buttons in POPUP */
+
+.contact-block-add button {
+    padding: .6rem;
+    height: fit-content;
+    border: none;
+    border-radius: .5rem;
+    /* color: #eee; */
+}
+
+.contact-button-send {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.contact-button-send:hover {
+    background-color: #bbb;
+    cursor: pointer;
+}
+
+.contact-button-sent {
+    background-color: #666;
+}
+
+.contact-button-accept {
+    background-color: rgb(96, 160, 190);
+}
+
+.contact-button-accept:hover {
+    background-color: rgb(90, 133, 153);
+    cursor: pointer;
+}
+
+.contact-button-cancel {
+    background-color: #ffaaaa;
+}
+
+.contact-button-cancel:hover {
+    background-color: #b57575;
+    cursor: pointer;
+}
+
+.contact-button-in-contacts {
+    background-color: transparent;
+    color: #eee;
+}
+
+@media (max-width: 500px) {
+    #popup-contact-box {
+        width: 95%;
+    }
+}

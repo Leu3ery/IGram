@@ -5,8 +5,8 @@ info:
   description: |
     **Changelog**
 
-    *Added:*
-    - post/list - username is no more required
+    *Remade:*
+    - /account/list/ - new logik
 
     **In each response you will get json like this: {"message": "User not found"}**
 
@@ -14,7 +14,7 @@ info:
 
     *You cand do only 100 requests evry 5 minutes*
 
-  version: 0.0.9
+  version: 0.0.10
 
 servers:
   - url: http://localhost:3000/api/v1
@@ -285,6 +285,8 @@ paths:
           description: Server Error
   /account/list/:
     get:
+      security:
+        - bearerAuth: []
       summary: Get list of users
       parameters: 
         - in: query
@@ -305,6 +307,17 @@ paths:
             type: string
             default: ""
           description: Start of the word
+        - in: query
+          name: itemTypes
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [sent, received, accepted]
+            # style and explode allow multiple query parameters like:
+            # ?itemTypes=send&itemTypes=received
+          description: An array of item types to filter (sent, received, accepted)
       responses:
         '200':
           content:
@@ -324,9 +337,24 @@ paths:
                 example: 
                   [
                     {
-                      "username": "leuzery",
-                      "name": "bla bla",
-                      "description": "bla bla bla"
+                      "id": 3,
+                      "username": "bot",
+                      "avatarImage": "file-1741093803804-633286774.jpeg",
+                      "name": "fff",
+                      "contacts": [
+                        {
+                          "id": 1,
+                          "username": "leuzery",
+                          "avatarImage": "file-1741081174728-987686929.jpeg",
+                          "name": "tu lox",
+                          "Contact": {
+                            "id": 2,
+                            "senderId": 3,
+                            "receiverId": 1,
+                            "isAccepted": true
+                          }
+                        }
+                      ]
                     }
                   ]
           description: Returns list with usernames
@@ -649,7 +677,9 @@ paths:
                 example:
                   [
                     {
-                      "username": "leuzery"
+                      "username": "lox",
+                      "avatarImage": "file-1740505877085-858054800.jpg",
+                      "name": "hmmm"
                     }
                   ]
         '400':
@@ -704,7 +734,9 @@ paths:
                 example:
                   [
                     {
-                      "username": "leuzery"
+                      "username": "lox",
+                      "avatarImage": "file-1740505877085-858054800.jpg",
+                      "name": "hmmm"
                     }
                   ]
         '400':
@@ -783,7 +815,9 @@ paths:
                 example:
                   [
                     {
-                      "username": "leuzery"
+                      "username": "lox",
+                      "avatarImage": "file-1740505877085-858054800.jpg",
+                      "name": "hmmm"
                     }
                   ]
         '400':
