@@ -112,8 +112,7 @@ router.get('/list', authenticateJWT, async (req, res, next) => {
                 offset: parseInt(offSet),
                 limit: parseInt(limit),
                 where: {
-                    id: {[Op.notIn]:relations},
-                    id: {[Op.notIn]:relationsRevers},
+                    id: {[Op.and]:[{[Op.notIn]:relations}, {[Op.notIn]:relationsRevers}]},
                     [Op.not]:[{id: req.user.id}],
                     username: {
                         [Op.startsWith]: startsWith

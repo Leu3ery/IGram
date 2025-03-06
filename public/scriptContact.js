@@ -78,7 +78,8 @@ window.addEventListener('load', async () => {
                         newEl.querySelector('img').src = basic_url + '/uploads/' + data[i].avatarImage;
                     }
                     newEl.querySelector('button.contact-button-send').addEventListener('click', async (e) => {
-                        if (addFriend(data[i].username)) {
+                        let res = await addFriend(data[i].username);
+                        if (res) {
                             e.target.classList.remove('contact-button-send');
                             e.target.classList.add('contact-button-sent');
                             e.target.textContent = 'Sent';
