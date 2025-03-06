@@ -30,6 +30,14 @@ User.belongsToMany(User, {
     onDelete: 'CASCADE'
 });
 
+User.belongsToMany(User, {
+    as: 'contactsRevers',
+    through: Contact,
+    foreignKey: 'receiverId',  
+    otherKey: 'senderId',  
+    onDelete: 'CASCADE'
+})
+
 Chat.belongsToMany(User, {
     through: ChatTable,
     foreignKey: 'chatId',

@@ -84,8 +84,28 @@ router.get('/list', authenticateJWT, async (req, res, next) => {
                     }
                 }
             });
+            let relationsRevers = await User.findAll({
+                attributes: ['id'],
+                where: {
+                    [Op.not]:[{id: req.user.id}]
+                },
+                include: {
+                    model: User,
+                    attributes: [],
+                    as: 'contactsRevers',
+                    required: true,
+                    through: {
+                        where: {
+                            [Op.or]:[{senderId: req.user.id}, {receiverId: req.user.id}]
+                        }
+                    }
+                }
+            });
             for (let i = 0; i < relations.length; i++) {
                 relations[i] = relations[i].dataValues.id
+            }
+            for (let i = 0; i < relationsRevers.length; i++) {
+                relationsRevers[i] = relationsRevers[i].dataValues.id
             }
             const users = await User.findAll({
                 attributes: ['id', 'username', 'avatarImage', 'name'],
@@ -93,7 +113,11 @@ router.get('/list', authenticateJWT, async (req, res, next) => {
                 limit: parseInt(limit),
                 where: {
                     id: {[Op.notIn]:relations},
-                    [Op.not]:[{id: req.user.id}]
+                    id: {[Op.notIn]:relationsRevers},
+                    [Op.not]:[{id: req.user.id}],
+                    username: {
+                        [Op.startsWith]: startsWith
+                    }
                 }
             })
             res.status(200).json(users);
@@ -110,7 +134,7 @@ router.get('/list', authenticateJWT, async (req, res, next) => {
                 orCondition.push({senderId: req.user.id, isAccepted: true});
                 orCondition.push({receiverId: req.user.id, isAccepted: true});
             }
-
+            let answer = [];
             const users = await User.findAll({
                 attributes: ['id', 'username', 'avatarImage', 'name'],
                 where: {
@@ -138,7 +162,36 @@ router.get('/list', authenticateJWT, async (req, res, next) => {
                     }
                 ]
             });
-            res.status(200).json(users);
+            answer.push(...users);
+            const usersRevers = await User.findAll({
+                attributes: ['id', 'username', 'avatarImage', 'name'],
+                where: {
+                    username: {
+                        [Op.startsWith]: startsWith
+                    },
+                    id: {
+                        [Op.not]: req.user.id
+                    }
+                },
+                offset: parseInt(offSet),
+                limit: parseInt(limit),
+                subQuery: false,
+                include: [
+                    {
+                        model: User,
+                        required: true,
+                        as: 'contactsRevers',
+                        attributes: ['id', 'username', 'avatarImage', 'name'],
+                        through: {
+                            where: {
+                                [Op.or]: orCondition
+                            }
+                        }
+                    }
+                ]
+            });
+            answer.push(...usersRevers);
+            res.status(200).json(answer);
         }
         
     } catch (error) {

@@ -185,7 +185,7 @@ window.addEventListener('load', async () => {
                 avatar.src = userData.avatar;
             }
         } catch (error) {
-            alert(error);
+            console.log(error);
         }
         
     }
@@ -211,7 +211,7 @@ window.addEventListener('load', async () => {
                 window.location.replace('login.html');
             }
         } catch (error) {
-            alert(error);
+            console.log(error);
         }
     }
     

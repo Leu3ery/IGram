@@ -190,6 +190,20 @@
     color: #eee;
 }
 
+#popup-next-button {
+    width: 100%;
+    padding: .5rem;
+    background-color: #222;
+    border: .05rem solid #555;
+    color: #eee;
+    border-radius: .3rem;
+}
+
+#popup-next-button:hover {
+    cursor: pointer;
+    background-color: #333;
+}
+
 @media (max-width: 500px) {
     #popup-contact-box {
         width: 95%;
