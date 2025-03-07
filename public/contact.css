@@ -1,3 +1,7 @@
+content {
+    max-height: calc(100vh - 4rem);
+}
+
 #top-part {
     position: relative;
 }
@@ -49,6 +53,7 @@
     padding: 1rem;
     box-shadow: 0 0 .5rem .01rem rgb(68, 68, 68);
     text-align: center;
+    background-color: #111;
 }
 
 #popup-contact-box form{
@@ -107,6 +112,7 @@
     overflow: scroll;
     font-style: normal;
     color: #ddd;
+    background-color: #111;
 }
 
 .contact-block-add {
@@ -204,8 +210,102 @@
     background-color: #333;
 }
 
+/* DOWN PART */
+
+#down-part {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: calc(100% - 80px);
+}
+
+#contact-search {
+    width: 100%;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+}
+
+#contact-search-input {
+    color: #ddd;
+    width: 20rem;
+    background-color: #222;
+    border: .05rem solid #555;
+    border-radius: .2rem;
+    padding: .5rem;
+}
+
+#contact-search-input:focus {
+    outline: none;
+}
+
+#contact-search-button {
+    padding: .5rem;
+    border: none;
+    background-color: transparent;
+    border-radius: 50%;
+    border: .05rem solid #555;
+}
+
+#contact-search-button:hover {
+    background-color: #222;
+    cursor: pointer;
+}
+
+#contact-search-button i {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: .9rem;
+    width: 1.3rem;
+    height: 1.3rem;
+    color: white;
+}
+
+#contact-dop-params {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+}
+
+#contact-dop-params button {
+    padding: .5rem;
+    border: .05rem solid #555;
+    border-radius: .5rem;
+    color: #ddd;
+    background-color: #151515;
+}
+
+#contact-dop-params button:hover {
+    cursor: pointer;
+    background-color: #222;
+}
+
+/* CONTACT LIST */
+
+#contact-list {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    gap: 1rem;
+    max-height: 100%;
+}
+
 @media (max-width: 500px) {
     #popup-contact-box {
         width: 95%;
+    }
+
+    #contact-dop-params {
+        font-size: .9rem;
+    }
+}
+
+@media (max-width: 400px) {
+    #contact-dop-params {
+        font-size: .8rem;
     }
 }
