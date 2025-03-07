@@ -152,6 +152,7 @@ content {
     border: none;
     background-color: #c6c6c6;
     border-radius: .2rem;
+    color: black;
 }
 
 #settings-form button:hover {

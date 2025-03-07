@@ -1,5 +1,5 @@
 window.addEventListener('load', async () => {
-    const url = 'http://localhost:3000/api/v1';
+    const url = 'http://172.21.50.113:3000/api/v1';
     // if (!navigator.onLine) {
     //     alert("No internet connection! Please check your network.");
     //     return;

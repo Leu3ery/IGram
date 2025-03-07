@@ -1,6 +1,6 @@
 window.addEventListener('load', async () => {
-    const url = 'http://localhost:3000/api/v1';
-    const basic_url = 'http://localhost:3000';
+    const url = 'http://172.21.50.113:3000/api/v1';
+    const basic_url = 'http://172.21.50.113:3000';
 
     let lastPopupRequest = {};
 
